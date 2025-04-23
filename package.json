@@ -23,6 +23,7 @@
     "winston": "^3.17.0"
   },
   "devDependencies": {
+    "@mermaid-js/mermaid-cli": "^11.4.2",
     "@types/cookie-parser": "^1.4.8",
     "@types/cors": "^2.8.17",
     "@types/express": "^5.0.1",

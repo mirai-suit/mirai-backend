@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -24,123 +18,121 @@ enum Role {
 }
 
 model UserAuth {
-  id                 String        @id @default(uuid())
-  email              String        @unique
-  password           String
-  resetToken         String?
-  resetTokenExpires  DateTime?
-  userProfile        UserProfile?  @relation(fields: [profileId], references: [id])
-  profileId          String?       @unique
-  createdAt          DateTime      @default(now())
-  updatedAt          DateTime      @updatedAt
+  id                String       @id @default(uuid())
+  email             String       @unique
+  password          String
+  resetToken        String?
+  resetTokenExpires DateTime?
+  userProfile       UserProfile? @relation(fields: [profileId], references: [id])
+  profileId         String?      @unique
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
 
   @@map("user_auth")
 }
 
 model UserProfile {
-  id              String             @id @default(uuid())
-  name            String
-  avatar          String
-  role            Role               @default(MEMBER)
-  preferences     UserPreferences?   @relation(fields: [preferencesId], references: [id])
-  preferencesId   String?            @unique
-  organizations   Organization[]     @relation("UserOrganizations")
-  teams           Team[]             @relation("UserTeams")
-  boardAccess     BoardAccess[]
-  tasks           Task[]             @relation("TaskAssignees")
-  createdAt       DateTime           @default(now())
-  updatedAt       DateTime           @updatedAt
-  deletedAt       DateTime?
+  id            String           @id @default(uuid())
+  name          String
+  avatar        String
+  role          Role             @default(MEMBER)
+  preferences   UserPreferences? @relation(fields: [preferencesId], references: [id])
+  preferencesId String?          @unique
+  organizations Organization[]   @relation("OrganizationUsers")
+  teams         Team[]           @relation("TeamUsers")
+  boardAccess   BoardAccess[]
+  tasks         Task[]           @relation("TaskAssignees")
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  deletedAt     DateTime?
 
-  auth            UserAuth?
+  auth UserAuth?
 
   @@map("user_profiles")
 }
 
 model UserPreferences {
-  id                 String     @id @default(uuid())
-  theme              String     @default("light")
-  language           String     @default("en")
-  notificationOptIn  Boolean    @default(true)
-  timezone           String?
-  dateFormat         String     @default("YYYY-MM-DD")
-  timeFormat         String     @default("24h")
-  createdAt          DateTime   @default(now())
-  updatedAt          DateTime   @updatedAt
+  id                String   @id @default(uuid())
+  theme             String   @default("light")
+  language          String   @default("en")
+  notificationOptIn Boolean  @default(true)
+  timezone          String?
+  dateFormat        String   @default("YYYY-MM-DD")
+  timeFormat        String   @default("24h")
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
-  user               UserProfile?
+  user UserProfile?
 
   @@map("user_preferences")
 }
 
 model Organization {
-  id          String         @id @default(uuid())
-  name        String
-  users       UserProfile[]  @relation("UserOrganizations")
-  teams       Team[]
-  boards      Board[]
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
+  id        String        @id @default(uuid())
+  name      String
+  users     UserProfile[] @relation("OrganizationUsers")
+  boards    Board[]
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
 
   @@map("organizations")
 }
 
 model Team {
-  id              String         @id @default(uuid())
-  name            String
-  organization    Organization   @relation(fields: [organizationId], references: [id])
-  organizationId  String
-  users           UserProfile[]  @relation("UserTeams")
-  boards          Board[]
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
-  Task            Task[]
+  id        String        @id @default(uuid())
+  name      String
+  users     UserProfile[] @relation("TeamUsers")
+  board     Board?        @relation("BoardTeams", fields: [boardId], references: [id])
+  boardId   String?
+  Task      Task[]
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
   @@map("teams")
-  
 }
 
 model Board {
-  id              String          @id @default(uuid())
-  title           String
-  organization    Organization    @relation(fields: [organizationId], references: [id])
-  organizationId  String
-  team            Team?           @relation(fields: [teamId], references: [id])
-  teamId          String?
-  tasks           Task[]
-  accessList      BoardAccess[]
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
+  id             String        @id @default(uuid())
+  title          String
+  organization   Organization  @relation(fields: [organizationId], references: [id])
+  organizationId String
+  teamId         String?
+  team           Team[]        @relation("BoardTeams")
+  tasks          Task[]
+  accessList     BoardAccess[]
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
 
   @@map("boards")
 }
 
 model Task {
-  id           String           @id @default(uuid())
-  title        String
-  description  String?
-  status       String
-  dueDate      DateTime?
-  priority     Int?
-  order        Int?
-  isRecurring  Boolean          @default(false)
-  assignees    UserProfile[]    @relation("TaskAssignees")
-  board        Board            @relation(fields: [boardId], references: [id])
-  boardId      String
-  team         Team?            @relation(fields: [teamId], references: [id])
-  teamId       String?
-  createdAt    DateTime         @default(now())
-  updatedAt    DateTime         @updatedAt
-  deletedAt    DateTime?
+  id          String        @id @default(uuid())
+  title       String
+  description String?
+  status      String
+  dueDate     DateTime?
+  priority    Int?
+  order       Int?
+  isRecurring Boolean       @default(false)
+  assignees   UserProfile[] @relation("TaskAssignees")
+  board       Board         @relation(fields: [boardId], references: [id])
+  boardId     String
+  team        Team?         @relation(fields: [teamId], references: [id])
+  teamId      String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  deletedAt   DateTime?
 
   @@map("tasks")
 }
 
 model BoardAccess {
-  id       String        @id @default(uuid())
-  user     UserProfile   @relation(fields: [userId], references: [id])
-  userId   String
-  board    Board         @relation(fields: [boardId], references: [id])
-  boardId  String
+  id      String      @id @default(uuid())
+  user    UserProfile @relation(fields: [userId], references: [id])
+  userId  String
+  board   Board       @relation(fields: [boardId], references: [id])
+  boardId String
 
   @@unique([userId, boardId])
   @@map("board_access")
