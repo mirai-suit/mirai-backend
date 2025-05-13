@@ -32,19 +32,21 @@ model UserAuth {
 }
 
 model UserProfile {
-  id            String           @id @default(uuid())
-  name          String
-  avatar        String
-  role          Role             @default(MEMBER)
-  preferences   UserPreferences? @relation(fields: [preferencesId], references: [id])
-  preferencesId String?          @unique
-  organizations Organization[]   @relation("OrganizationUsers")
-  teams         Team[]           @relation("TeamUsers")
-  boardAccess   BoardAccess[]
-  tasks         Task[]           @relation("TaskAssignees")
-  createdAt     DateTime         @default(now())
-  updatedAt     DateTime         @updatedAt
-  deletedAt     DateTime?
+  id               String           @id @default(uuid())
+  name             String
+  avatar           String
+  role             Role             @default(MEMBER)
+  preferences      UserPreferences? @relation(fields: [preferencesId], references: [id])
+  preferencesId    String?          @unique
+  organizations    Organization[]   @relation("OrganizationUsers")
+  teams            Team[]           @relation("TeamUsers")
+  boardAccess      BoardAccess[]
+  tasks            Task[]           @relation("TaskAssignees")
+  sentMessages     Message[]        @relation("ProfileSentMessages")
+  receivedMessages Message[]        @relation("ProfileReceivedMessages")
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  deletedAt        DateTime?
 
   auth UserAuth?
 
@@ -79,14 +81,16 @@ model Organization {
 }
 
 model Team {
-  id        String        @id @default(uuid())
-  name      String
-  users     UserProfile[] @relation("TeamUsers")
-  board     Board?        @relation("BoardTeams", fields: [boardId], references: [id])
-  boardId   String?
-  Task      Task[]
-  createdAt DateTime      @default(now())
-  updatedAt DateTime      @updatedAt
+  id            String        @id @default(uuid())
+  name          String
+  users         UserProfile[] @relation("TeamUsers")
+  board         Board?        @relation("BoardTeams", fields: [boardId], references: [id])
+  boardId       String?
+  messageThread MessageThread?  @relation("TeamMessageThread") 
+  messageThreadId String      @unique
+  tasks         Task[]
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
 
   @@map("teams")
 }
@@ -98,12 +102,20 @@ model Board {
   organizationId String
   teamId         String?
   team           Team[]        @relation("BoardTeams")
-  tasks          Task[]
+  columns        Column[]
   accessList     BoardAccess[]
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
 
   @@map("boards")
+}
+
+model Column {
+  id      String @id @default(uuid())
+  title   String
+  tasks   Task[] @relation("TaskColumn")
+  board   Board  @relation(fields: [boardId], references: [id])
+  boardId String
 }
 
 model Task {
@@ -116,8 +128,8 @@ model Task {
   order       Int?
   isRecurring Boolean       @default(false)
   assignees   UserProfile[] @relation("TaskAssignees")
-  board       Board         @relation(fields: [boardId], references: [id])
-  boardId     String
+  column      Column        @relation("TaskColumn", fields: [columnId], references: [id])
+  columnId    String
   team        Team?         @relation(fields: [teamId], references: [id])
   teamId      String?
   createdAt   DateTime      @default(now())
@@ -137,3 +149,21 @@ model BoardAccess {
   @@unique([userId, boardId])
   @@map("board_access")
 }
+model MessageThread {
+  id       String    @id @default(uuid())
+  team     Team      @relation("TeamMessageThread",fields: [teamId], references: [id]) 
+  teamId   String    @unique
+  messages Message[]
+}
+model Message {
+  id              String        @id @default(uuid())
+  messageThread   MessageThread @relation(fields: [messageThreadId], references: [id])
+  messageThreadId String
+  receiver        UserProfile   @relation("ProfileReceivedMessages", fields: [receiverId], references: [id])
+  receiverId      String
+  sender          UserProfile   @relation("ProfileSentMessages", fields: [senderId], references: [id])
+  senderId        String
+  message         String
+}
+
+
