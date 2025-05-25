@@ -1,0 +1,206 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+generator erd {
+  provider = "prisma-erd-generator"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  EDITOR
+  MEMBER
+}
+
+model UserAuth {
+  id           String        @id @default(uuid())
+  email        String        @unique
+  password     String
+  refreshToken RefreshToken? 
+  refreshTokenId String?     @unique  
+  userProfile  UserProfile?  @relation(fields: [profileId], references: [id])
+  profileId    String?       @unique
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  @@map("user_auth")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  userId    String   @map("user_id") @unique
+  user      UserAuth @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([userId])
+  @@index([token])
+  @@map("refresh_tokens")
+}
+
+model UserProfile {
+  id            String           @id @default(uuid())
+  firstName     String
+  lastName      String
+  avatar        String
+  roles         Role[]           @default([MEMBER])
+  preferences   UserPreferences? @relation(fields: [preferencesId], references: [id])
+  preferencesId String?          @unique
+  organizations Organization[]   @relation("OrganizationUsers")
+  teams         Team[]           @relation("TeamUsers")
+  boardAccess   BoardAccess[]
+  tasks         Task[]           @relation("TaskAssignees")
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  deletedAt     DateTime?
+
+  auth UserAuth?
+
+  @@map("user_profiles")
+}
+
+model UserPreferences {
+  id                String   @id @default(uuid())
+  theme             String   @default("light")
+  language          String   @default("en")
+  notificationOptIn Boolean  @default(true)
+  timezone          String?
+  dateFormat        String   @default("YYYY-MM-DD")
+  timeFormat        String   @default("24h")
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  user UserProfile?
+
+  @@map("user_preferences")
+}
+
+model Organization {
+  id        String        @id @default(uuid())
+  name      String
+  users     UserProfile[] @relation("OrganizationUsers")
+  boards    Board[]
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  @@map("organizations")
+}
+
+model Team {
+  id        String        @id @default(uuid())
+  name      String
+  users     UserProfile[] @relation("TeamUsers")
+  board     Board?        @relation("BoardTeams", fields: [boardId], references: [id])
+  boardId   String?
+  Task      Task[]
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  @@map("teams")
+}
+
+model Board {
+  id             String        @id @default(uuid())
+  title          String
+  organization   Organization  @relation(fields: [organizationId], references: [id])
+  organizationId String
+  teamId         String?
+  team           Team[]        @relation("BoardTeams")
+  tasks          Task[]
+  accessList     BoardAccess[]
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@map("boards")
+}
+
+model Task {
+  id          String        @id @default(uuid())
+  title       String
+  description String?
+  status      String
+  dueDate     DateTime?
+  priority    Int?
+  order       Int?
+  isRecurring Boolean       @default(false)
+  assignees   UserProfile[] @relation("TaskAssignees")
+  board       Board         @relation(fields: [boardId], references: [id])
+  boardId     String
+  team        Team?         @relation(fields: [teamId], references: [id])
+  teamId      String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  deletedAt   DateTime?
+
+  @@map("tasks")
+}
+
+model BoardAccess {
+  id      String      @id @default(uuid())
+  user    UserProfile @relation(fields: [userId], references: [id])
+  userId  String
+  board   Board       @relation(fields: [boardId], references: [id])
+  boardId String
+
+  @@unique([userId, boardId])
+  @@map("board_access")
+}
+
+// model user {
+//   id        String   @id @default(uuid())
+//   firstName String   @map("first_name")
+//   lastName  String   @map("last_name")
+//   username  String  @unique
+//   email     String  @unique
+//   password  String
+//   isEmailVerified Boolean @default(false) @map("is_email_verified")
+//   createdAt DateTime @default(now()) @map("created_at")
+//   updatedAt DateTime @updatedAt @map("updated_at")
+//   roles     String[]  
+//   OTP otp[]
+//   refreshToken refreshToken[]
+
+//   @@index([id])
+//   @@map("users")
+// }
+
+// model otp {
+//   id          String   @id @default(uuid())
+//   userId      String
+//   otpHash     String   // Hashed OTP
+//   purpose     String   @default("email_verification")// Purpose of the OTP (e.g., "email_verification", "password_reset")
+//   expiresAt   DateTime @map("expires_at") // Expiration time for the OTP
+//   attempts    Int      @default(0) 
+//   requestedAt DateTime @default(now()) @map("requested_at")
+//   isActive   Boolean  @default(true) @map("is_active") // Flag to indicate if OTP is still active
+//   user        user     @relation(fields: [userId], references: [id])
+//   @@index([userId]) // Index for quick lookup by user
+//   @@map("otp")
+// }
+
+// model refreshToken {
+//   id          String   @id @default(uuid())
+//   token       String   @unique
+//   userId      String   @map("user_id")
+//   user        user     @relation(fields: [userId], references: [id], onDelete: Cascade)
+//   expiresAt   DateTime @map("expires_at")
+//   createdAt   DateTime @default(now()) @map("created_at")
+//   updatedAt   DateTime @updatedAt @map("updated_at")
+
+//   @@index([userId])
+//   @@index([token])
+//   @@map("refresh_tokens")
+// }

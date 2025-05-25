@@ -1,0 +1,76 @@
+2025-04-21 20:07:32 [32minfo[39m: [32mServer running on port 3000 in development mode[39m
+2025-04-21 20:07:32 [32minfo[39m: [32mDatabase connection established[39m
+2025-04-21 20:07:34 [32minfo[39m: [32mConnected to the database[39m
+2025-04-21 20:07:43 [32minfo[39m: [32mShutting down server...[39m
+2025-04-21 20:07:43 [32minfo[39m: [32mExpress server closed[39m
+2025-04-21 20:07:43 [32minfo[39m: [32mShutting down server...[39m
+2025-04-21 20:07:43 [32minfo[39m: [32mExpress server closed[39m
+2025-04-21 20:07:43 [32minfo[39m: [32mDatabase connection closed[39m
+2025-04-22 10:29:40 [32minfo[39m: [32mServer running on port 3000 in development mode[39m
+2025-04-22 10:29:40 [32minfo[39m: [32mDatabase connection established[39m
+2025-04-22 10:29:42 [32minfo[39m: [32mConnected to the database[39m
+2025-04-22 10:30:16 [32minfo[39m: [32mShutting down server...[39m
+2025-04-22 10:30:16 [32minfo[39m: [32mExpress server closed[39m
+2025-04-22 10:30:16 [32minfo[39m: [32mDatabase connection closed[39m
+2025-04-22 10:30:16 [32minfo[39m: [32mServer running on port 3000 in development mode[39m
+2025-04-22 10:30:16 [32minfo[39m: [32mConnecting to database...[39m
+2025-04-22 10:30:18 [32minfo[39m: [32mConnected to the database[39m
+2025-04-22 10:45:23 [32minfo[39m: [32mShutting down server...[39m
+2025-04-22 10:45:29 [32minfo[39m: [32mServer running on port 3000 in development mode[39m
+2025-04-22 10:45:29 [32minfo[39m: [32mConnecting to database...[39m
+2025-04-22 10:45:31 [32minfo[39m: [32mConnected to the database[39m
+2025-04-22 10:47:11 [32minfo[39m: [32mShutting down server...[39m
+2025-04-22 10:47:11 [32minfo[39m: [32mExpress server closed[39m
+2025-04-22 10:47:11 [32minfo[39m: [32mDatabase connection closed[39m
+2025-04-22 10:47:12 [32minfo[39m: [32mServer running on port 3000 in DEVELOPMENT mode[39m
+2025-04-22 10:47:12 [32minfo[39m: [32mConnecting to database...[39m
+2025-04-22 10:47:13 [32minfo[39m: [32mConnected to the database[39m
+2025-04-22 10:47:31 [32minfo[39m: [32mShutting down server...[39m
+2025-04-22 10:47:31 [32minfo[39m: [32mExpress server closed[39m
+2025-04-22 10:47:31 [32minfo[39m: [32mDatabase connection closed[39m
+2025-04-22 10:47:32 [32minfo[39m: [32mServer running on port 8000 in DEVELOPMENT mode[39m
+2025-04-22 10:47:32 [32minfo[39m: [32mConnecting to database...[39m
+2025-04-22 10:47:33 [32minfo[39m: [32mConnected to the database[39m
+2025-04-22 10:52:08 [32minfo[39m: [32mShutting down server...[39m
+2025-04-22 10:52:08 [32minfo[39m: [32mExpress server closed[39m
+2025-04-22 10:52:08 [32minfo[39m: [32mDatabase connection closed[39m
+2025-04-22 10:52:08 [32minfo[39m: [32mServer running on port 8000 in DEVELOPMENT mode[39m
+2025-04-22 10:52:08 [32minfo[39m: [32mConnecting to database...[39m
+2025-04-22 10:52:11 [32minfo[39m: [32mConnected to the database[39m
+2025-04-22 10:52:36 [32minfo[39m: [32mShutting down server...[39m
+2025-04-22 10:52:36 [32minfo[39m: [32mExpress server closed[39m
+2025-04-22 10:52:36 [32minfo[39m: [32mDatabase connection closed[39m
+2025-04-22 10:52:36 [32minfo[39m: [32mServer running on port 8000 in DEVELOPMENT mode[39m
+2025-04-22 10:52:36 [32minfo[39m: [32mConnecting to database...[39m
+2025-04-22 10:52:38 [32minfo[39m: [32mConnected to the database[39m
+2025-04-22 10:54:13 [32minfo[39m: [32mShutting down server...[39m
+2025-04-22 10:54:13 [32minfo[39m: [32mExpress server closed[39m
+2025-04-22 10:54:13 [32minfo[39m: [32mDatabase connection closed[39m
+2025-04-22 10:54:13 [32minfo[39m: [32mServer running on port 8000 in DEVELOPMENT mode[39m
+2025-04-22 10:54:13 [32minfo[39m: [32mConnecting to database...[39m
+2025-04-22 10:54:14 [32minfo[39m: [32mConnected to the database[39m
+2025-04-22 11:13:33 [32minfo[39m: [32mShutting down server...[39m
+2025-04-22 11:13:33 [32minfo[39m: [32mExpress server closed[39m
+2025-04-22 11:13:33 [32minfo[39m: [32mDatabase connection closed[39m
+2025-04-22 11:13:34 [32minfo[39m: [32mServer running on port 8000 in DEVELOPMENT mode[39m
+2025-04-22 11:13:34 [32minfo[39m: [32mConnecting to database...[39m
+2025-04-22 11:13:36 [32minfo[39m: [32mConnected to the database[39m
+2025-04-22 11:14:16 [32minfo[39m: [32mShutting down server...[39m
+2025-04-22 11:14:16 [32minfo[39m: [32mExpress server closed[39m
+2025-04-22 11:14:16 [32minfo[39m: [32mDatabase connection closed[39m
+2025-04-22 11:14:16 [32minfo[39m: [32mServer running on port 8000 in DEVELOPMENT mode[39m
+2025-04-22 11:14:16 [32minfo[39m: [32mConnecting to database...[39m
+2025-04-22 11:14:18 [32minfo[39m: [32mConnected to the database[39m
+2025-04-22 11:26:05 [32minfo[39m: [32mShutting down server...[39m
+2025-04-22 11:26:05 [32minfo[39m: [32mExpress server closed[39m
+2025-04-22 11:26:05 [32minfo[39m: [32mDatabase connection closed[39m
+2025-04-22 11:26:06 [32minfo[39m: [32mServer running on port 8000 in DEVELOPMENT mode[39m
+2025-04-22 11:26:06 [32minfo[39m: [32mConnecting to database...[39m
+2025-04-22 11:26:08 [32minfo[39m: [32mConnected to the database[39m
+2025-04-22 11:40:06 [32minfo[39m: [32mShutting down server...[39m
+2025-04-22 11:40:06 [32minfo[39m: [32mExpress server closed[39m
+2025-04-22 11:40:06 [32minfo[39m: [32mDatabase connection closed[39m
+2025-04-22 11:40:06 [32minfo[39m: [32mServer running on port 8000 in DEVELOPMENT mode[39m
+2025-04-22 11:40:06 [32minfo[39m: [32mConnecting to database...[39m
+2025-04-22 11:40:08 [32minfo[39m: [32mShutting down server...[39m
+2025-04-22 11:40:08 [32minfo[39m: [32mExpress server closed[39m
