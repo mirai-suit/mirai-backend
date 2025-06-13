@@ -1,18 +1,15 @@
 -- CreateEnum
 CREATE TYPE "UserRole" AS ENUM ('ADMIN', 'MEMBER');
 
--- DropEnum
-DROP TYPE "crdb_internal_region";
-
 -- CreateTable
 CREATE TABLE "user_" (
-    "id" STRING NOT NULL,
-    "firstName" STRING NOT NULL,
-    "lastName" STRING NOT NULL,
-    "avatar" STRING,
-    "email" STRING NOT NULL,
-    "password" STRING NOT NULL,
-    "refreshTokenId" STRING,
+    "id" TEXT NOT NULL,
+    "firstName" TEXT NOT NULL,
+    "lastName" TEXT NOT NULL,
+    "avatar" TEXT,
+    "email" TEXT NOT NULL,
+    "password" TEXT NOT NULL,
+    "refreshTokenId" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -21,9 +18,9 @@ CREATE TABLE "user_" (
 
 -- CreateTable
 CREATE TABLE "refresh_tokens" (
-    "id" STRING NOT NULL,
-    "token" STRING NOT NULL,
-    "user_id" STRING NOT NULL,
+    "id" TEXT NOT NULL,
+    "token" TEXT NOT NULL,
+    "user_id" TEXT NOT NULL,
     "expires_at" TIMESTAMP(3) NOT NULL,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
@@ -33,24 +30,24 @@ CREATE TABLE "refresh_tokens" (
 
 -- CreateTable
 CREATE TABLE "user_preferences" (
-    "id" STRING NOT NULL,
-    "theme" STRING NOT NULL DEFAULT 'light',
-    "language" STRING NOT NULL DEFAULT 'en',
-    "notificationOptIn" BOOL NOT NULL DEFAULT true,
-    "timezone" STRING,
-    "dateFormat" STRING NOT NULL DEFAULT 'YYYY-MM-DD',
-    "timeFormat" STRING NOT NULL DEFAULT '24h',
+    "id" TEXT NOT NULL,
+    "theme" TEXT NOT NULL DEFAULT 'light',
+    "language" TEXT NOT NULL DEFAULT 'en',
+    "notificationOptIn" BOOLEAN NOT NULL DEFAULT true,
+    "timezone" TEXT,
+    "dateFormat" TEXT NOT NULL DEFAULT 'YYYY-MM-DD',
+    "timeFormat" TEXT NOT NULL DEFAULT '24h',
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
-    "userId" STRING,
+    "userId" TEXT,
 
     CONSTRAINT "user_preferences_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
 CREATE TABLE "organizations" (
-    "id" STRING NOT NULL,
-    "name" STRING NOT NULL,
+    "id" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -59,32 +56,32 @@ CREATE TABLE "organizations" (
 
 -- CreateTable
 CREATE TABLE "organization_users" (
-    "id" STRING NOT NULL,
-    "organizationId" STRING NOT NULL,
-    "userId" STRING NOT NULL,
-    "role" STRING NOT NULL DEFAULT 'MEMBER',
+    "id" TEXT NOT NULL,
+    "organizationId" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "role" TEXT NOT NULL DEFAULT 'MEMBER',
 
     CONSTRAINT "organization_users_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
 CREATE TABLE "teams" (
-    "id" STRING NOT NULL,
-    "name" STRING NOT NULL,
-    "boardId" STRING,
+    "id" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "boardId" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
-    "refreshTokenId" STRING,
+    "refreshTokenId" TEXT,
 
     CONSTRAINT "teams_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
 CREATE TABLE "boards" (
-    "id" STRING NOT NULL,
-    "title" STRING NOT NULL,
-    "organizationId" STRING NOT NULL,
-    "teamId" STRING,
+    "id" TEXT NOT NULL,
+    "title" TEXT NOT NULL,
+    "organizationId" TEXT NOT NULL,
+    "teamId" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -93,44 +90,48 @@ CREATE TABLE "boards" (
 
 -- CreateTable
 CREATE TABLE "tasks" (
-    "id" STRING NOT NULL,
-    "title" STRING NOT NULL,
-    "description" STRING,
-    "status" STRING NOT NULL,
+    "id" TEXT NOT NULL,
+    "title" TEXT NOT NULL,
+    "description" TEXT,
+    "status" TEXT NOT NULL,
     "dueDate" TIMESTAMP(3),
-    "priority" INT4,
-    "order" INT4,
-    "isRecurring" BOOL NOT NULL DEFAULT false,
-    "boardId" STRING NOT NULL,
-    "teamId" STRING,
+    "priority" INTEGER,
+    "order" INTEGER,
+    "isRecurring" BOOLEAN NOT NULL DEFAULT false,
+    "boardId" TEXT NOT NULL,
+    "teamId" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
     "deletedAt" TIMESTAMP(3),
-    "refreshTokenId" STRING,
+    "refreshTokenId" TEXT,
 
     CONSTRAINT "tasks_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
 CREATE TABLE "board_access" (
-    "id" STRING NOT NULL,
-    "userId" STRING NOT NULL,
-    "boardId" STRING NOT NULL,
-    "accessRole" STRING NOT NULL DEFAULT 'MEMBER',
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "boardId" TEXT NOT NULL,
+    "accessRole" TEXT NOT NULL DEFAULT 'MEMBER',
 
     CONSTRAINT "board_access_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
 CREATE TABLE "_TeamToUser" (
-    "A" STRING NOT NULL,
-    "B" STRING NOT NULL
+    "A" TEXT NOT NULL,
+    "B" TEXT NOT NULL,
+
+    CONSTRAINT "_TeamToUser_AB_pkey" PRIMARY KEY ("A","B")
 );
 
 -- CreateTable
 CREATE TABLE "_TaskToUser" (
-    "A" STRING NOT NULL,
-    "B" STRING NOT NULL
+    "A" TEXT NOT NULL,
+    "B" TEXT NOT NULL,
+
+    CONSTRAINT "_TaskToUser_AB_pkey" PRIMARY KEY ("A","B")
 );
 
 -- CreateIndex
@@ -161,13 +162,7 @@ CREATE UNIQUE INDEX "organization_users_organizationId_userId_key" ON "organizat
 CREATE UNIQUE INDEX "board_access_userId_boardId_key" ON "board_access"("userId", "boardId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "_TeamToUser_AB_unique" ON "_TeamToUser"("A", "B");
-
--- CreateIndex
 CREATE INDEX "_TeamToUser_B_index" ON "_TeamToUser"("B");
-
--- CreateIndex
-CREATE UNIQUE INDEX "_TaskToUser_AB_unique" ON "_TaskToUser"("A", "B");
 
 -- CreateIndex
 CREATE INDEX "_TaskToUser_B_index" ON "_TaskToUser"("B");

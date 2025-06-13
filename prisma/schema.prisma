@@ -13,7 +13,7 @@ generator client {
 // }
 
 datasource db {
-  provider = "cockroachdb"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -46,11 +46,10 @@ model RefreshToken {
   id          String           @id @default(uuid())
   token       String           @unique
   userId      String           @unique @map("user_id")
-  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user        User?             @relation(fields: [userId], references: [id], onDelete: Cascade)
   expiresAt   DateTime         @map("expires_at")
   createdAt   DateTime         @default(now()) @map("created_at")
   updatedAt   DateTime         @updatedAt @map("updated_at")
-  preferences UserPreferences? @relation(fields: [id], references: [userId])
   teams       Team[]
   tasks       Task[]
 
@@ -71,7 +70,6 @@ model UserPreferences {
   updatedAt         DateTime       @updatedAt
   userId            String?        @unique
   user              User?          @relation(fields: [userId], references: [id])
-  RefreshToken      RefreshToken[]
 
   @@map("user_preferences")
 }

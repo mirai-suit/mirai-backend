@@ -1,38 +1,33 @@
 // generate token for user signup
-import jwt, { SignOptions } from "jsonwebtoken"
-import env from "src/config/env"
+import jwt, { SignOptions } from "jsonwebtoken";
+import env from "src/config/env";
 import prisma from "src/config/prisma/prisma.client";
 import { otpPurpose } from "src/interfaces/enums/auth";
-import { sendEmail } from "src/services/email.service"
+import { sendEmail } from "src/services/email.service";
 import CustomError from "src/shared/exceptions/CustomError";
-import { v4 as uuidv4 } from 'uuid';
-import * as bcrypt from 'bcrypt';
-
-
-
-
+import { v4 as uuidv4 } from "uuid";
+import * as bcrypt from "bcrypt";
 
 // generate token helper
-export const generateToken = (payload:any , expiresIn?:number): string => {
-  if(!expiresIn){
-    if(payload.isVerified){
+export const generateToken = (payload: any, expiresIn?: number): string => {
+  if (!expiresIn) {
+    if (payload.isVerified) {
       expiresIn = 60 * 60 * 24; // 24 hours
-    }else{
+    } else {
       expiresIn = 60 * 5; // 5 minutes
     }
   }
-    const options: SignOptions = { expiresIn: expiresIn }
-    return jwt.sign(payload, String(env.JWT_SECRET), options)
-}
+  const options: SignOptions = { expiresIn: expiresIn };
+  return jwt.sign(payload, String(env.JWT_SECRET), options);
+};
 
-
-// 4 digit code randome number 
+// 4 digit code randome number
 export const generateRandomCode = (): string => {
   const min = 1000; // Minimum 4-digit number
   const max = 9999; // Maximum 4-digit number
   const randomCode = Math.floor(Math.random() * (max - min + 1)) + min;
   return randomCode.toString();
-}
+};
 const emailTemplates = {
   verification: (otp: string) => `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -63,33 +58,45 @@ const emailTemplates = {
       <p>Hello ${name},</p>
       <p>Thank you for joining our platform. We're excited to have you on board!</p>
     </div>
-  `
+  `,
 };
 export async function sendVerificationEmail(email: string, otp: string) {
-  return sendEmail({
-    to: email,
-    subject: 'Verify Your Email Address'
-  }, emailTemplates.verification(otp));
-  }
-
-export async function sendPasswordResetEmail(email: string, otp: string) {
-  return sendEmail({
-    to: email,
-    subject: 'Reset Your Password'
-  }, emailTemplates.passwordReset(otp));
+  return sendEmail(
+    {
+      to: email,
+      subject: "Verify Your Email Address",
+    },
+    emailTemplates.verification(otp)
+  );
 }
 
+export async function sendPasswordResetEmail(email: string, otp: string) {
+  return sendEmail(
+    {
+      to: email,
+      subject: "Reset Your Password",
+    },
+    emailTemplates.passwordReset(otp)
+  );
+}
 
-
-export async function generateAndSaveRefreshToken(userId: string): Promise<string> {
+export async function generateAndSaveRefreshToken(
+  userId: string
+): Promise<string> {
   const token = uuidv4();
   const expiresAt = new Date();
   expiresAt.setDate(expiresAt.getDate() + 7); // 7 days from now
-
+  // Check if user exists
+  const existingRefreshToken = await prisma.refreshToken.findUnique({ where: { userId: userId } });
+  if (existingRefreshToken) {    
+    throw new CustomError(404, "User Already logged in.");    
+  }
   await prisma.refreshToken.create({
     data: {
       token,
-      userId,
+      user:{
+        connect: { id: userId },
+      },
       expiresAt,
     },
   });
@@ -97,7 +104,9 @@ export async function generateAndSaveRefreshToken(userId: string): Promise<strin
   return token;
 }
 
-export async function verifyRefreshToken(token: string ): Promise<{userId: string}> {
+export async function verifyRefreshToken(
+  token: string
+): Promise<{ userId: string }> {
   // Check if token exists in database
   const refreshToken = await prisma.refreshToken.findUnique({
     where: { token: token },
@@ -105,18 +114,17 @@ export async function verifyRefreshToken(token: string ): Promise<{userId: strin
   });
 
   if (!refreshToken) {
-    throw new Error('Invalid refresh token');
+    throw new Error("Invalid refresh token");
   }
-
 
   // Check if token is expired
   if (refreshToken.expiresAt < new Date()) {
     // Clean up expired token
     await prisma.refreshToken.delete({ where: { id: refreshToken.id } });
-    throw new Error('Refresh token expired');
+    throw new Error("Refresh token expired");
   }
 
-  return { userId:refreshToken.userId};
+  return { userId: refreshToken.userId };
 }
 
 export async function revokeRefreshToken(token: string): Promise<void> {
@@ -129,11 +137,11 @@ export async function revokeAllRefreshTokens(userId: string): Promise<void> {
 // Add this function at the top of your file or in a separate helper file
 export const createJwtPayload = (user: any) => {
   return {
-      id: user.id,
-      email: user.email,
-      firstName: user.firstName,
-      lastName: user.lastName,
-      // isVerified: user.isEmailVerified || false,
+    id: user.id,
+    email: user.email,
+    firstName: user.firstName,
+    lastName: user.lastName,
+    // isVerified: user.isEmailVerified || false,
   };
 };
 
@@ -157,16 +165,16 @@ export const createJwtPayload = (user: any) => {
  */
 export const validateOtp = async (otpRecord: any, otp: string) => {
   if (!otpRecord) {
-    throw new CustomError(400, 'Invalid or expired OTP');
+    throw new CustomError(400, "Invalid or expired OTP");
   }
 
   if (!otpRecord.isActive) {
-    throw new CustomError(400, 'OTP has already been used');
+    throw new CustomError(400, "OTP has already been used");
   }
 
   const isValidOtp = await bcrypt.compare(otp, otpRecord.otpHash);
   if (!isValidOtp) {
-    throw new CustomError(400, 'Invalid OTP');
+    throw new CustomError(400, "Invalid OTP");
   }
 
   return true;
@@ -207,18 +215,18 @@ export const validateOtp = async (otpRecord: any, otp: string) => {
 export const createPasswordResetToken = async (userId: string) => {
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user) {
-    throw new CustomError(404, 'User not found');
+    throw new CustomError(404, "User not found");
   }
-  
+
   const resetPayload = {
     id: user.id,
     email: user.email,
-    purpose: 'password_reset'
+    purpose: "password_reset",
   };
-  
+
   // Generate token valid for 5 minutes
   return {
     resetToken: generateToken(resetPayload, 5000),
-    user
+    user,
   };
 };
