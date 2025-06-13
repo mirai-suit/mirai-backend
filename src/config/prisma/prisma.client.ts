@@ -1,4 +1,5 @@
-import { PrismaClient } from "../../../prisma/generated";
+
+import { PrismaClient } from "@prisma/client";
 import logger from "src/utils/logger";
 
 // We are disabling the eslint rule here for a specific purpose. DO NOT REMOVE

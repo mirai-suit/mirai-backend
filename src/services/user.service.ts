@@ -5,6 +5,7 @@ import logger from "src/utils/logger";
 import { createJwtPayload, generateAndSaveRefreshToken, generateToken } from "src/helpers/auth/auth.helpers";
 import * as bcrypt from 'bcrypt';
 import { checkDuplicateField, sanitizeUserData } from "src/helpers/user/user.helper";
+import { userSchema } from "src/interfaces/schemas/create/auth";
 
 /**
  * Update user information
@@ -19,9 +20,9 @@ export const updateUser = async (userId: string, userData: updateUserInfo) => {
       where: { id: userId },
       select: {
         id: true,
-        username: true,
+        firstName: true,
+        lastName: true,
         email: true,
-        roles: true
       }
     });
 
@@ -32,15 +33,6 @@ export const updateUser = async (userId: string, userData: updateUserInfo) => {
     // Perform parallel checks for duplicate username and email
     const checks = [];
     
-    if (userData.username && userData.username !== existingUser.username) {
-      checks.push(
-        checkDuplicateField('username', userData.username, userId)
-          .then(exists => {
-            if (exists) throw new CustomError(409, "Username already exists");
-          })
-      );
-    }
-
     if (userData.email && userData.email !== existingUser.email) {
       checks.push(
         checkDuplicateField('email', userData.email, userId)
@@ -50,12 +42,13 @@ export const updateUser = async (userId: string, userData: updateUserInfo) => {
       );
     }
 
+
     // Wait for all validation checks to complete
     await Promise.all(checks);
 
-    // Check if roles are being updated
-    const rolesChanged = userData.roles && 
-      JSON.stringify(userData.roles.sort()) !== JSON.stringify(existingUser.roles.sort());
+    // // Check if roles are being updated
+    // const rolesChanged = userData.roles && 
+    //   JSON.stringify(userData.roles.sort()) !== JSON.stringify(existingUser.roles.sort());
 
     // Prepare update data - hash password if provided
     if (userData.password) {
@@ -75,13 +68,13 @@ export const updateUser = async (userId: string, userData: updateUserInfo) => {
     };
 
     // Generate new token if roles changed
-    if (rolesChanged) {
-      const jwtPayload = createJwtPayload(updatedUser);
-      response.accessToken = generateToken(jwtPayload);
-      response.refreshToken = await generateAndSaveRefreshToken(userId);
-      response.message = "User updated successfully. New token generated due to role change.";
-      logger.info(`New token generated for user ${userId} due to role change`);
-}
+    // if (rolesChanged) {
+    //   const jwtPayload = createJwtPayload(updatedUser);
+    //   response.accessToken = generateToken(jwtPayload);
+    //   response.refreshToken = await generateAndSaveRefreshToken(userId);
+    //   response.message = "User updated successfully. New token generated due to role change.";
+    //   logger.info(`New token generated for user ${userId} due to role change`);
+    // }
 
     return response;
   } catch (error) {
@@ -110,7 +103,7 @@ export const getUserById = async (userId: string) => {
 
     return {
       success: true,
-      user: sanitizeUserData(user)
+      user: userSchema.parse(user)
     };
   } catch (error) {
     logger.error(`Error fetching user: ${error}`);
@@ -120,3 +113,4 @@ export const getUserById = async (userId: string) => {
     throw new CustomError(500, "Failed to fetch user information");
   }
 };
+

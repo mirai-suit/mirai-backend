@@ -22,7 +22,7 @@ export const signup = async (req: Request, res: Response, next: NextFunction) =>
         // Return successful response
         res.status(201).json({
             success: true,
-            message: 'User registered successfully. Check your email for verification code.',
+            message: 'User registered successfully.',
             data: result
         });
     } catch (error) {
@@ -35,21 +35,21 @@ export const signup = async (req: Request, res: Response, next: NextFunction) =>
  * Verify OTP code sent to user
  * @route POST /api/auth/verify-otp
  */
-export const verifyOtp = async (req: Request, res: Response, next: NextFunction) => {
-    try {
-        const {code} = req.body as VerificationCodeInput;
-        const userId = req.user.id;
-        const result = await authService.verifyOtp(userId, code , otpPurpose.email_verification);
+// export const verifyOtp = async (req: Request, res: Response, next: NextFunction) => {
+//     try {
+//         const {code} = req.body as VerificationCodeInput;
+//         const userId = req.user.id;
+//         const result = await authService.verifyOtp(userId, code , otpPurpose.email_verification);
 
-        res.status(200).json({
-            success: true,
-            message: 'OTP verified successfully',
-            isVerified: result
-        });
-    } catch (error) {
-        next(error);
-    }
-};
+//         res.status(200).json({
+//             success: true,
+//             message: 'OTP verified successfully',
+//             isVerified: result
+//         });
+//     } catch (error) {
+//         next(error);
+//     }
+// };
 
 /**
  * User login
@@ -135,20 +135,20 @@ export const getCurrentUser = async (req: Request, res: Response, next: NextFunc
  * Resend OTP to user's email
  * @route POST /api/auth/resend-otp
  */
-export const resendOtp = async (req: Request, res: Response, next: NextFunction) => {
-    try {
-        const userId = req.user.id;
-        await authService.resendOtp(userId);
+// export const resendOtp = async (req: Request, res: Response, next: NextFunction) => {
+//     try {
+//         const userId = req.user.id;
+//         await authService.resendOtp(userId);
 
-        res.status(200).json({
-            success: true,
-            message: 'A new verification code has been sent to your email'
-        });
-    } catch (error) {
-        logger.error(`Resend OTP error: ${error}`);
-        next(error);
-    }
-};
+//         res.status(200).json({
+//             success: true,
+//             message: 'A new verification code has been sent to your email'
+//         });
+//     } catch (error) {
+//         logger.error(`Resend OTP error: ${error}`);
+//         next(error);
+//     }
+// };
 
 /**
  * Logout user and invalidate tokens
@@ -184,40 +184,40 @@ export const resendOtp = async (req: Request, res: Response, next: NextFunction)
  * Request password reset
  * @route POST /api/auth/request-password-reset
  */
-export const requestPasswordReset = async (req: Request, res: Response, next: NextFunction) => {
-    try {
-        const {email} = req.body as requestResetPasswordInput 
-        await authService.requestPasswordResetOtp(email);
-        res.status(200).json({
-            success: true,
-            message: 'Password reset verification code sent to your email'
-        });
-    } catch (error) {
-        logger.error(`Request password reset error: ${error}`);
-        next(error);
-    }
-}
+// export const requestPasswordReset = async (req: Request, res: Response, next: NextFunction) => {
+//     try {
+//         const {email} = req.body as requestResetPasswordInput 
+//         await authService.requestPasswordResetOtp(email);
+//         res.status(200).json({
+//             success: true,
+//             message: 'Password reset verification code sent to your email'
+//         });
+//     } catch (error) {
+//         logger.error(`Request password reset error: ${error}`);
+//         next(error);
+//     }
+// }
 
 
-// verify otp for password reset
-export const verifyPasswordResetOtp = async (req: Request, res: Response, next: NextFunction) => {
-    try {
-        const {email,code} = req.body as VerificationCodeInput;
-        if (!email) {
-            throw new CustomError(400, "Email is required");
-        }
-        const result = await authService.verifyOtpForPasswordReset(email, code );
+// // verify otp for password reset
+// export const verifyPasswordResetOtp = async (req: Request, res: Response, next: NextFunction) => {
+//     try {
+//         const {email,code} = req.body as VerificationCodeInput;
+//         if (!email) {
+//             throw new CustomError(400, "Email is required");
+//         }
+//         const result = await authService.verifyOtpForPasswordReset(email, code );
 
-        res.status(200).json({
-            success: true,
-            message: 'OTP verified successfully',
-            isVerified: result
-        });
-    } catch (error) {
-        logger.error(`Verify password reset OTP error: ${error}`);
-        next(error);
-    }
-};
+//         res.status(200).json({
+//             success: true,
+//             message: 'OTP verified successfully',
+//             isVerified: result
+//         });
+//     } catch (error) {
+//         logger.error(`Verify password reset OTP error: ${error}`);
+//         next(error);
+//     }
+// };
 
 
 // reset password

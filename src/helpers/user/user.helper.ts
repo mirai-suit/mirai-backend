@@ -1,4 +1,3 @@
-import { user } from "prisma/generated";
 import prisma from "src/config/prisma/prisma.client";
 
 export const checkDuplicateField = async (field: string, value: string, userId: string): Promise<boolean> => {
@@ -12,7 +11,7 @@ export const checkDuplicateField = async (field: string, value: string, userId: 
   };
   
   // Helper function to prepare user data for response
- export const sanitizeUserData = (user: user) => {
+ export const sanitizeUserData = (user : any ) => {
     const { password, ...userWithoutPassword } = user;
     return userWithoutPassword;
   };

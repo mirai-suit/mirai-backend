@@ -8,106 +8,108 @@ generator client {
   provider = "prisma-client-js"
 }
 
-generator erd {
-  provider = "prisma-erd-generator"
-}
+// generator erd {
+//   provider = "prisma-erd-generator"
+// }
 
 datasource db {
-  provider = "postgresql"
+  provider = "cockroachdb"
   url      = env("DATABASE_URL")
 }
 
-enum Role {
+enum UserRole {
   ADMIN
-  EDITOR
   MEMBER
 }
 
-model UserAuth {
-  id           String        @id @default(uuid())
-  email        String        @unique
-  password     String
-  refreshToken RefreshToken? 
-  refreshTokenId String?     @unique  
-  userProfile  UserProfile?  @relation(fields: [profileId], references: [id])
-  profileId    String?       @unique
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
+model User {
+  id               String             @id @default(uuid())
+  firstName        String
+  lastName         String
+  avatar           String?
+  email            String             @unique
+  password         String
+  refreshToken     RefreshToken?
+  refreshTokenId   String?            @unique
+  organizationUser OrganizationUser[]
+  UserPreferences  UserPreferences[]
+  teams            Team[]
+  tasks            Task[]
+  boardAccess      BoardAccess[]
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
 
-  @@map("user_auth")
+  @@map("user_")
 }
 
 model RefreshToken {
-  id        String   @id @default(uuid())
-  token     String   @unique
-  userId    String   @map("user_id") @unique
-  user      UserAuth @relation(fields: [userId], references: [id], onDelete: Cascade)
-  expiresAt DateTime @map("expires_at")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id          String           @id @default(uuid())
+  token       String           @unique
+  userId      String           @unique @map("user_id")
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt   DateTime         @map("expires_at")
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+  preferences UserPreferences? @relation(fields: [id], references: [userId])
+  teams       Team[]
+  tasks       Task[]
 
   @@index([userId])
   @@index([token])
   @@map("refresh_tokens")
 }
 
-model UserProfile {
-  id            String           @id @default(uuid())
-  firstName     String
-  lastName      String
-  avatar        String
-  roles         Role[]           @default([MEMBER])
-  preferences   UserPreferences? @relation(fields: [preferencesId], references: [id])
-  preferencesId String?          @unique
-  organizations Organization[]   @relation("OrganizationUsers")
-  teams         Team[]           @relation("TeamUsers")
-  boardAccess   BoardAccess[]
-  tasks         Task[]           @relation("TaskAssignees")
-  createdAt     DateTime         @default(now())
-  updatedAt     DateTime         @updatedAt
-  deletedAt     DateTime?
-
-  auth UserAuth?
-
-  @@map("user_profiles")
-}
-
 model UserPreferences {
-  id                String   @id @default(uuid())
-  theme             String   @default("light")
-  language          String   @default("en")
-  notificationOptIn Boolean  @default(true)
+  id                String         @id @default(uuid())
+  theme             String         @default("light")
+  language          String         @default("en")
+  notificationOptIn Boolean        @default(true)
   timezone          String?
-  dateFormat        String   @default("YYYY-MM-DD")
-  timeFormat        String   @default("24h")
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-
-  user UserProfile?
+  dateFormat        String         @default("YYYY-MM-DD")
+  timeFormat        String         @default("24h")
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  userId            String?        @unique
+  user              User?          @relation(fields: [userId], references: [id])
+  RefreshToken      RefreshToken[]
 
   @@map("user_preferences")
 }
 
 model Organization {
-  id        String        @id @default(uuid())
-  name      String
-  users     UserProfile[] @relation("OrganizationUsers")
-  boards    Board[]
-  createdAt DateTime      @default(now())
-  updatedAt DateTime      @updatedAt
+  id               String             @id @default(uuid())
+  name             String
+  boards           Board[]
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  organizationUser OrganizationUser[]
 
   @@map("organizations")
 }
 
+model OrganizationUser {
+  id             String       @id @default(uuid())
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  organizationId String
+  user           User         @relation(fields: [userId], references: [id])
+  userId         String
+  role           String       @default("MEMBER")
+
+  @@unique([organizationId, userId])
+  @@map("organization_users")
+}
+
 model Team {
-  id        String        @id @default(uuid())
-  name      String
-  users     UserProfile[] @relation("TeamUsers")
-  board     Board?        @relation("BoardTeams", fields: [boardId], references: [id])
-  boardId   String?
-  Task      Task[]
-  createdAt DateTime      @default(now())
-  updatedAt DateTime      @updatedAt
+  id             String        @id @default(uuid())
+  name           String
+  users          User[]
+  board          Board?        @relation("BoardTeams", fields: [boardId], references: [id])
+  boardId        String?
+  Task           Task[]
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  refreshToken   RefreshToken? @relation(fields: [refreshTokenId], references: [id])
+  refreshTokenId String?
 
   @@map("teams")
 }
@@ -128,32 +130,35 @@ model Board {
 }
 
 model Task {
-  id          String        @id @default(uuid())
-  title       String
-  description String?
-  status      String
-  dueDate     DateTime?
-  priority    Int?
-  order       Int?
-  isRecurring Boolean       @default(false)
-  assignees   UserProfile[] @relation("TaskAssignees")
-  board       Board         @relation(fields: [boardId], references: [id])
-  boardId     String
-  team        Team?         @relation(fields: [teamId], references: [id])
-  teamId      String?
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
-  deletedAt   DateTime?
+  id             String        @id @default(uuid())
+  title          String
+  description    String?
+  status         String
+  dueDate        DateTime?
+  priority       Int?
+  order          Int?
+  isRecurring    Boolean       @default(false)
+  assignees      User[]
+  board          Board         @relation(fields: [boardId], references: [id])
+  boardId        String
+  team           Team?         @relation(fields: [teamId], references: [id])
+  teamId         String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  deletedAt      DateTime?
+  RefreshToken   RefreshToken? @relation(fields: [refreshTokenId], references: [id])
+  refreshTokenId String?
 
   @@map("tasks")
 }
 
 model BoardAccess {
-  id      String      @id @default(uuid())
-  user    UserProfile @relation(fields: [userId], references: [id])
-  userId  String
-  board   Board       @relation(fields: [boardId], references: [id])
-  boardId String
+  id         String @id @default(uuid())
+  user       User   @relation(fields: [userId], references: [id])
+  userId     String
+  board      Board  @relation(fields: [boardId], references: [id])
+  boardId    String
+  accessRole String @default("MEMBER") // Default access role can be MEMBER, EDITOR, or ADMI  N
 
   @@unique([userId, boardId])
   @@map("board_access")

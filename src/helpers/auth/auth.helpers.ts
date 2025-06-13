@@ -131,26 +131,26 @@ export const createJwtPayload = (user: any) => {
   return {
       id: user.id,
       email: user.email,
-      username: user.username,
-      roles: user.roles,
-      isVerified: user.isEmailVerified || false,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      // isVerified: user.isEmailVerified || false,
   };
 };
 
-export const findLatestValidOtp = async (userId: string) => {
-  return await prisma.otp.findFirst({
-    where: {
-      userId,
-      expiresAt: {
-        gte: new Date(),
-      },
-      isActive: true,
-    },
-    orderBy: {
-      requestedAt: 'desc',
-    },
-  });
-};
+// export const findLatestValidOtp = async (userId: string) => {
+//   return await prisma.otp.findFirst({
+//     where: {
+//       userId,
+//       expiresAt: {
+//         gte: new Date(),
+//       },
+//       isActive: true,
+//     },
+//     orderBy: {
+//       requestedAt: 'desc',
+//     },
+//   });
+// };
 
 /**
  * Validate an OTP against stored hash
@@ -175,31 +175,31 @@ export const validateOtp = async (otpRecord: any, otp: string) => {
 /**
  * Deactivate a specific OTP by ID
  */
-export const deactivateOtp = async (id: string) => {
-  await prisma.otp.update({
-    where: {
-      id: id
-    },
-    data: {
-      isActive: false,
-    }
-  });
-};
+// export const deactivateOtp = async (id: string) => {
+//   await prisma.otp.update({
+//     where: {
+//       id: id
+//     },
+//     data: {
+//       isActive: false,
+//     }
+//   });
+// };
 
-/**
- * Deactivate all active OTPs for a user
- */
-export const deactivateUserOtps = async (userId: string) => {
-  await prisma.otp.updateMany({
-    where: {
-      userId,
-      isActive: true,
-    },
-    data: {
-      isActive: false,
-    }
-  });
-};
+// /**
+//  * Deactivate all active OTPs for a user
+//  */
+// export const deactivateUserOtps = async (userId: string) => {
+//   await prisma.otp.updateMany({
+//     where: {
+//       userId,
+//       isActive: true,
+//     },
+//     data: {
+//       isActive: false,
+//     }
+//   });
+// };
 
 /**
  * Create a password reset token for a user

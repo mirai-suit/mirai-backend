@@ -12,9 +12,8 @@ declare global {
       user: {
         id: string;
         email: string;
-        username: string;
-        roles: string[];
-        isVerified: boolean;
+        firstName: string;
+        lastName: string;
       };
     }
   }
@@ -43,18 +42,16 @@ export const verifyToken = async (
       const decoded = jwt.verify(token, env.JWT_SECRET) as {
         id: string;
         email: string;
-        username: string;
-        roles: string[];
-        isVerified: boolean;
+        firstName: string;
+        lastName: string;
       };
       
       // Attach user to request with all the payload data
       req.user = {
         id: decoded.id,
         email: decoded.email,
-        username: decoded.username,
-        roles: decoded.roles,
-        isVerified: decoded.isVerified
+        firstName: decoded.firstName,
+        lastName: decoded.lastName, 
       };
       
       const user = await authService.findUserById(decoded.id);
@@ -76,23 +73,23 @@ export const verifyToken = async (
   }
 };
 // Also fix the checkRole middleware
-export const checkRole = (roles: string[]) => {
-  return (req: Request, res: Response, next: NextFunction) => {
-    if (!req.user) {
-      res.status(403).json({ message: 'Forbidden' });
-      return
-    }
+// export const checkRole = (roles: string[]) => {
+//   return (req: Request, res: Response, next: NextFunction) => {
+//     if (!req.user) {
+//       res.status(403).json({ message: 'Forbidden' });
+//       return
+//     }
 
 
-    const userRoles = req.user.roles;
-    const hasRole = roles.some(role => userRoles.includes(role));
-    if (!hasRole) {
-      res.status(403).json({ message: 'Forbidden' });
-      return
-    }
-    next();
-  };
-};
+//     const userRoles = req.user.roles;
+//     const hasRole = roles.some(role => userRoles.includes(role));
+//     if (!hasRole) {
+//       res.status(403).json({ message: 'Forbidden' });
+//       return
+//     }
+//     next();
+//   };
+// };
 
 
 
