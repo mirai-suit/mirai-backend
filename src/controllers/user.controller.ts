@@ -2,8 +2,6 @@
 // update user info
 import { NextFunction, Request, Response } from "express";
 import { updateUserInfo } from "src/interfaces/DTOs/user";
-import CustomError from "src/shared/exceptions/CustomError";
-import logger from "src/utils/logger";
 import * as userService from "src/services/user.service";
 
 
