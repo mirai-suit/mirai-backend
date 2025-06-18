@@ -118,6 +118,15 @@ model Board {
   organization   Organization  @relation(fields: [organizationId], references: [id])
   organizationId String
   teamId         String?
+  columns        Column[]      
+  description    String?
+  isArchived     Boolean       @default(false)
+  isPublic       Boolean       @default(false)
+  isTemplate     Boolean       @default(false)
+  isPrivate      Boolean       @default(false)
+  isReadOnly     Boolean       @default(false)
+  isShared       Boolean       @default(false)
+  isDefault      Boolean       @default(false)
   team           Team[]        @relation("BoardTeams")
   tasks          Task[]
   accessList     BoardAccess[]
@@ -125,6 +134,18 @@ model Board {
   updatedAt      DateTime      @updatedAt
 
   @@map("boards")
+}
+
+model Column {
+  id             String        @id @default(uuid())
+  name           String
+  board          Board         @relation(fields: [boardId], references: [id])
+  boardId        String
+  tasks          Task[]
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@map("columns")
 }
 
 model Task {
@@ -135,6 +156,8 @@ model Task {
   dueDate        DateTime?
   priority       Int?
   order          Int?
+  column         Column        @relation(fields: [columnId], references: [id])
+  columnId       String
   isRecurring    Boolean       @default(false)
   assignees      User[]
   board          Board         @relation(fields: [boardId], references: [id])
