@@ -3,12 +3,25 @@ import CustomError from "src/shared/exceptions/CustomError";
 import logger from "src/utils/logger";
 
 // Create a new column in a board
-export const createColumn = async (name: string, boardId: string) => {
+export const createColumn = async (data: {
+  name: string;
+  boardId: string;
+  color?: string;
+  order?: number;
+}) => {
   try {
+    // Get the highest order for this board to set new column at the end
+    const lastColumn = await prisma.column.findFirst({
+      where: { boardId: data.boardId },
+      orderBy: { order: "desc" },
+    });
+
     const column = await prisma.column.create({
       data: {
-        name,
-        boardId,
+        name: data.name,
+        boardId: data.boardId,
+        color: data.color || "#6B7280",
+        order: data.order ?? (lastColumn ? lastColumn.order + 1 : 0),
       },
     });
     return { success: true, column };
@@ -24,6 +37,7 @@ export const getColumnsForBoard = async (boardId: string) => {
     const columns = await prisma.column.findMany({
       where: { boardId },
       include: { tasks: true },
+      orderBy: { order: "asc" },
     });
     return { success: true, columns };
   } catch (error) {
@@ -60,26 +74,32 @@ export const deleteColumn = async (columnId: string) => {
 };
 
 // Reorder tasks in a column
-export const reorderColumnTasks = async (columnId: string, orderedTaskIds: string[]) => {
+export const reorderColumnTasks = async (
+  columnId: string,
+  orderedTaskIds: string[]
+) => {
   try {
     // Fetch all tasks in the column
     const tasks = await prisma.task.findMany({
       where: { columnId, deletedAt: null },
-      select: { id: true }
+      select: { id: true },
     });
 
     // Validate all provided IDs belong to this column
-    const taskIdsInColumn = tasks.map(t => t.id);
-    const allValid = orderedTaskIds.every(id => taskIdsInColumn.includes(id));
+    const taskIdsInColumn = tasks.map((t) => t.id);
+    const allValid = orderedTaskIds.every((id) => taskIdsInColumn.includes(id));
     if (!allValid) {
-      throw new CustomError(400, "One or more task IDs do not belong to this column");
+      throw new CustomError(
+        400,
+        "One or more task IDs do not belong to this column"
+      );
     }
 
     // Update the order field for each task
     const updates = orderedTaskIds.map((taskId, idx) =>
       prisma.task.update({
         where: { id: taskId },
-        data: { order: idx }
+        data: { order: idx },
       })
     );
     await prisma.$transaction(updates);

@@ -108,6 +108,8 @@ export async function verifyRefreshToken(
   token: string
 ): Promise<{ userId: string }> {
   // Check if token exists in database
+
+  console.log('TOKEN FOR VERIFICATION IN HELPER IS ', token);
   const refreshToken = await prisma.refreshToken.findUnique({
     where: { token: token },
     include: { user: true },

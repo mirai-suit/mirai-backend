@@ -1,49 +1,24 @@
 import { Request, Response, NextFunction } from "express";
 import * as boardService from "../services/board.service";
 import logger from "src/utils/logger";
+import type {
+  CreateBoardResponseDto,
+  GetBoardResponseDto,
+  GetBoardsResponseDto,
+  UpdateBoardResponseDto,
+  DeleteBoardResponseDto,
+  BoardAccessResponseActionDto,
+} from "src/interfaces/DTOs/board/response.dto";
 
 // Create a new board
 export const createBoard = async (
   req: Request,
-  res: Response,
+  res: Response<CreateBoardResponseDto>,
   next: NextFunction
 ) => {
   try {
-    const {
-      title,
-      organizationId,
-      description,
-      teamId,
-      isArchived,
-      isPublic,
-      isTemplate,
-      isPrivate,
-      isReadOnly,
-      isShared,
-      isDefault,
-    } = req.body;
-    if (!title || !organizationId) {
-      res
-        .status(400)
-        .json({
-          success: false,
-          message: "title and organizationId are required",
-        });
-      return;
-    }
-    const result = await boardService.createBoard({
-      title,
-      organizationId,
-      description,
-      teamId,
-      isArchived,
-      isPublic,
-      isTemplate,
-      isPrivate,
-      isReadOnly,
-      isShared,
-      isDefault,
-    });
+    // All validation is now handled by middleware
+    const result = await boardService.createBoard(req.body);
     res.status(201).json(result);
   } catch (error) {
     logger.error(`Create Board Controller Error: ${error}`);
@@ -54,15 +29,12 @@ export const createBoard = async (
 // Get a board by ID
 export const getBoardById = async (
   req: Request,
-  res: Response,
+  res: Response<GetBoardResponseDto>,
   next: NextFunction
 ) => {
   try {
-    const boardId = req.params.boardId || req.body.boardId;
-    if (!boardId) {
-      res.status(400).json({ success: false, message: "boardId is required" });
-      return;
-    }
+    // boardId validation handled by middleware
+    const { boardId } = req.params;
     const result = await boardService.getBoardById(boardId);
     res.status(200).json(result);
   } catch (error) {
@@ -74,17 +46,12 @@ export const getBoardById = async (
 // Get all boards for an organization
 export const getBoardsForOrganization = async (
   req: Request,
-  res: Response,
+  res: Response<GetBoardsResponseDto>,
   next: NextFunction
 ) => {
   try {
-    const organizationId = req.params.organizationId || req.body.organizationId;
-    if (!organizationId) {
-      res
-        .status(400)
-        .json({ success: false, message: "organizationId is required" });
-      return;
-    }
+    // organizationId validation handled by middleware
+    const { organizationId } = req.params;
     const result = await boardService.getBoardsForOrganization(organizationId);
     res.status(200).json(result);
   } catch (error) {
@@ -96,15 +63,13 @@ export const getBoardsForOrganization = async (
 // Update a board
 export const updateBoard = async (
   req: Request,
-  res: Response,
+  res: Response<UpdateBoardResponseDto>,
   next: NextFunction
 ) => {
   try {
-    const { boardId, ...updateData } = req.body;
-    if (!boardId) {
-      res.status(400).json({ success: false, message: "boardId is required" });
-      return;
-    }
+    // Validation handled by middleware
+    const { boardId } = req.params;
+    const updateData = req.body;
     const result = await boardService.updateBoard(boardId, updateData);
     res.status(200).json(result);
   } catch (error) {
@@ -116,15 +81,12 @@ export const updateBoard = async (
 // Delete a board
 export const deleteBoard = async (
   req: Request,
-  res: Response,
+  res: Response<DeleteBoardResponseDto>,
   next: NextFunction
 ) => {
   try {
-    const boardId = req.params.boardId || req.body.boardId;
-    if (!boardId) {
-      res.status(400).json({ success: false, message: "boardId is required" });
-      return;
-    }
+    // boardId validation handled by middleware
+    const { boardId } = req.params;
     const result = await boardService.deleteBoard(boardId);
     res.status(200).json(result);
   } catch (error) {
@@ -136,17 +98,13 @@ export const deleteBoard = async (
 // Add user access to a board
 export const addUserToBoard = async (
   req: Request,
-  res: Response,
+  res: Response<BoardAccessResponseActionDto>,
   next: NextFunction
 ) => {
   try {
-    const { boardId, userId, accessRole } = req.body;
-    if (!boardId || !userId) {
-      res
-        .status(400)
-        .json({ success: false, message: "boardId and userId are required" });
-      return;
-    }
+    // Validation handled by middleware
+    const { boardId } = req.params;
+    const { userId, accessRole } = req.body;
     const result = await boardService.addUserToBoard(
       boardId,
       userId,
@@ -162,17 +120,12 @@ export const addUserToBoard = async (
 // Remove user access from a board
 export const removeUserFromBoard = async (
   req: Request,
-  res: Response,
+  res: Response<BoardAccessResponseActionDto>,
   next: NextFunction
 ) => {
   try {
-    const { boardId, userId } = req.body;
-    if (!boardId || !userId) {
-      res
-        .status(400)
-        .json({ success: false, message: "boardId and userId are required" });
-      return;
-    }
+    // Validation handled by middleware
+    const { boardId, userId } = req.params;
     const result = await boardService.removeUserFromBoard(boardId, userId);
     res.status(200).json(result);
   } catch (error) {
@@ -184,20 +137,13 @@ export const removeUserFromBoard = async (
 // Change user's access role on a board
 export const changeUserBoardRole = async (
   req: Request,
-  res: Response,
+  res: Response<BoardAccessResponseActionDto>,
   next: NextFunction
 ) => {
   try {
-    const { boardId, userId, accessRole } = req.body;
-    if (!boardId || !userId || !accessRole) {
-      res
-        .status(400)
-        .json({
-          success: false,
-          message: "boardId, userId, and accessRole are required",
-        });
-      return;
-    }
+    // Validation handled by middleware
+    const { boardId, userId } = req.params;
+    const { accessRole } = req.body;
     const result = await boardService.changeUserBoardRole(
       boardId,
       userId,

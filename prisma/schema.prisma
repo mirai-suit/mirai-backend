@@ -120,6 +120,8 @@ model Board {
   teamId         String?
   columns        Column[]      
   description    String?
+  color          String        @default("#3B82F6") // Default blue color
+  coverImage     String?       // Board cover image URL
   isArchived     Boolean       @default(false)
   isPublic       Boolean       @default(false)
   isTemplate     Boolean       @default(false)
@@ -127,6 +129,8 @@ model Board {
   isReadOnly     Boolean       @default(false)
   isShared       Boolean       @default(false)
   isDefault      Boolean       @default(false)
+  deletedAt      DateTime?     // Soft delete timestamp
+  deletedBy      String?       // User ID who deleted the board
   team           Team[]        @relation("BoardTeams")
   tasks          Task[]
   accessList     BoardAccess[]
@@ -139,6 +143,8 @@ model Board {
 model Column {
   id             String        @id @default(uuid())
   name           String
+  color          String        @default("#6B7280") // Default gray color
+  order          Int           @default(0) // For column ordering
   board          Board         @relation(fields: [boardId], references: [id])
   boardId        String
   tasks          Task[]

@@ -16,7 +16,7 @@ export const createColumn = async (
         .json({ success: false, message: "name and boardId are required" });
       return;
     }
-    const result = await columnService.createColumn(name, boardId);
+    const result = await columnService.createColumn({ name, boardId });
     res.status(201).json(result);
   } catch (error) {
     logger.error(`Create Column Controller Error: ${error}`);
@@ -95,12 +95,10 @@ export const reorderColumnTasks = async (
   try {
     const { columnId, orderedTaskIds } = req.body;
     if (!columnId || !Array.isArray(orderedTaskIds)) {
-      res
-        .status(400)
-        .json({
-          success: false,
-          message: "columnId and orderedTaskIds array are required",
-        });
+      res.status(400).json({
+        success: false,
+        message: "columnId and orderedTaskIds array are required",
+      });
       return;
     }
     const result = await columnService.reorderColumnTasks(

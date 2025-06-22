@@ -93,6 +93,11 @@ export const signUp = async (userData: UserInput) => {
     `User profile created with name: ${user.firstName} ${user.lastName}`
   );
 
+  // Get organization count for the user
+  const organizationCount = await prisma.organizationUser.count({
+    where: { userId: user.id },
+  });
+
   // Optionally, you can generate a token for the user here
   const jwtPayload = createJwtPayload(user);
   const signUpToken = generateToken(jwtPayload);
@@ -108,11 +113,12 @@ export const signUp = async (userData: UserInput) => {
   //     });
 
   return {
-    userAuth: {
+    user: {
       id: user.id,
       email: user.email,
       firstName: user.firstName,
       lastName: user.lastName,
+      organizationCount,
     },
     accessToken: signUpToken,
     refreshToken: refreshToken,
@@ -304,6 +310,11 @@ export const login = async (userData: LoginInput) => {
     throw new CustomError(401, "Invalid Password");
   }
 
+  // Get organization count for the user
+  const organizationCount = await prisma.organizationUser.count({
+    where: { userId: userAuth.id },
+  });
+
   // Optionally, you can generate a token for the user here
   const jwtPayload = createJwtPayload(userAuth);
   const loginToken = generateToken(jwtPayload); // Token valid for 24 hours
@@ -312,8 +323,9 @@ export const login = async (userData: LoginInput) => {
     user: {
       id: userAuth.id,
       email: userAuth.email,
-      firstname: userAuth.firstName,
-      lastname: userAuth.lastName,
+      firstName: userAuth.firstName,
+      lastName: userAuth.lastName,
+      organizationCount,
     },
     accessToken: loginToken,
     refreshToken: refreshToken,
