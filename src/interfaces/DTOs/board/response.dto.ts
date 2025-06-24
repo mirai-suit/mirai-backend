@@ -1,29 +1,24 @@
-// Column Response DTO
-export interface ColumnResponseDto {
+// Column Response DTO (minimal for board context - avoid circular references)
+export interface ColumnInBoardDto {
   id: string;
   name: string;
   color: string;
   order: number;
-  boardId: string;
   createdAt: string;
   updatedAt: string;
 }
 
-// Task Response DTO (basic for now)
-export interface TaskResponseDto {
+// Task Response DTO (minimal for board context - avoid circular references)
+export interface TaskInBoardDto {
   id: string;
   title: string;
-  description?: string;
   status: string;
-  dueDate?: string;
-  priority?: number;
-  order?: number;
   columnId: string;
-  boardId: string;
-  isRecurring: boolean;
+  order?: number;
+  priority?: number;
+  dueDate?: string;
   createdAt: string;
   updatedAt: string;
-  deletedAt?: string;
 }
 
 // Team Response DTO (basic)
@@ -69,8 +64,8 @@ export interface BoardResponseDto {
   deletedBy?: string;
   createdAt: string;
   updatedAt: string;
-  columns?: ColumnResponseDto[];
-  tasks?: TaskResponseDto[];
+  columns?: ColumnInBoardDto[]; // Use minimal column data
+  tasks?: TaskInBoardDto[]; // Use minimal task data
   team?: TeamResponseDto[];
   accessList?: BoardAccessResponseDto[];
 }

@@ -1,14 +1,13 @@
 import prisma from "src/config/prisma/prisma.client";
 import CustomError from "src/shared/exceptions/CustomError";
 import logger from "src/utils/logger";
+import {
+  CreateColumnDto,
+  UpdateColumnDto,
+} from "src/interfaces/DTOs/column/request.dto";
 
 // Create a new column in a board
-export const createColumn = async (data: {
-  name: string;
-  boardId: string;
-  color?: string;
-  order?: number;
-}) => {
+export const createColumn = async (data: CreateColumnDto) => {
   try {
     // Get the highest order for this board to set new column at the end
     const lastColumn = await prisma.column.findFirst({
@@ -47,11 +46,21 @@ export const getColumnsForBoard = async (boardId: string) => {
 };
 
 // Update a column
-export const updateColumn = async (columnId: string, name: string) => {
+export const updateColumn = async (data: UpdateColumnDto) => {
   try {
+    const updateData: { name?: string; color?: string } = {};
+
+    if (data.name !== undefined) {
+      updateData.name = data.name;
+    }
+
+    if (data.color !== undefined) {
+      updateData.color = data.color;
+    }
+
     const updated = await prisma.column.update({
-      where: { id: columnId },
-      data: { name },
+      where: { id: data.columnId },
+      data: updateData,
     });
     return { success: true, column: updated };
   } catch (error) {

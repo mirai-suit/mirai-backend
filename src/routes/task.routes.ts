@@ -1,28 +1,31 @@
-import { Router } from 'express';
-import * as taskController from '../controllers/task.controller';
-import { verifyToken } from '../middlewares/auth.middleware';
+import { Router } from "express";
+import * as taskController from "../controllers/task.controller";
+import { verifyToken } from "../middlewares/auth.middleware";
 
 const router = Router();
 
 // Create a new task
-router.post('/create', verifyToken, taskController.createTask);
+router.post("/", verifyToken, taskController.createTask);
 
 // Get a task by ID
-router.get('/:taskId', verifyToken, taskController.getTaskById);
+router.get("/:taskId", verifyToken, taskController.getTaskById);
 
 // Get all tasks for a board
-router.get('/board/:boardId', verifyToken, taskController.getTasksForBoard);
+router.get("/board/:boardId", verifyToken, taskController.getTasksForBoard);
 
 // Get all tasks for a column
-router.get('/column/:columnId', verifyToken, taskController.getTasksForColumn);
+router.get("/column/:columnId", verifyToken, taskController.getTasksForColumn);
 
 // Update a task
-router.patch('/update', verifyToken, taskController.updateTask);
+router.put("/:taskId", verifyToken, taskController.updateTask);
 
-// Soft delete a task
-router.delete('/delete/:taskId', verifyToken, taskController.deleteTask);
+// Move a task between columns (for drag & drop)
+router.patch("/:taskId/move", verifyToken, taskController.moveTask);
 
 // Assign users to a task
-router.post('/assign-users', verifyToken, taskController.assignUsersToTask);
+router.patch("/:taskId/assign", verifyToken, taskController.assignUsersToTask);
+
+// Soft delete a task
+router.delete("/:taskId", verifyToken, taskController.deleteTask);
 
 export default router;

@@ -1,22 +1,30 @@
 import { Request, Response, NextFunction } from "express";
 import * as columnService from "../services/column.service";
 import logger from "src/utils/logger";
+import {
+  CreateColumnInput,
+  UpdateColumnRequestInput,
+  ReorderColumnTasksRequestInput,
+  ColumnIdParam,
+  BoardIdParam,
+} from "src/schemas/column.schema";
+import {
+  CreateColumnDto,
+  UpdateColumnDto,
+  ReorderColumnTasksDto,
+  GetColumnsForBoardDto,
+  DeleteColumnDto,
+} from "src/interfaces/DTOs/column/request.dto";
 
 // Create a new column
 export const createColumn = async (
-  req: Request,
+  req: Request<{}, any, CreateColumnInput>,
   res: Response,
   next: NextFunction
 ) => {
   try {
-    const { name, boardId } = req.body;
-    if (!name || !boardId) {
-      res
-        .status(400)
-        .json({ success: false, message: "name and boardId are required" });
-      return;
-    }
-    const result = await columnService.createColumn({ name, boardId });
+    const createColumnDto: CreateColumnDto = req.body;
+    const result = await columnService.createColumn(createColumnDto);
     res.status(201).json(result);
   } catch (error) {
     logger.error(`Create Column Controller Error: ${error}`);
@@ -26,17 +34,17 @@ export const createColumn = async (
 
 // Get all columns for a board
 export const getColumnsForBoard = async (
-  req: Request,
+  req: Request<BoardIdParam>,
   res: Response,
   next: NextFunction
 ) => {
   try {
-    const boardId = req.params.boardId || req.body.boardId;
-    if (!boardId) {
-      res.status(400).json({ success: false, message: "boardId is required" });
-      return;
-    }
-    const result = await columnService.getColumnsForBoard(boardId);
+    const getColumnsDto: GetColumnsForBoardDto = {
+      boardId: req.params.boardId,
+    };
+    const result = await columnService.getColumnsForBoard(
+      getColumnsDto.boardId
+    );
     res.status(200).json(result);
   } catch (error) {
     logger.error(`Get Columns For Board Controller Error: ${error}`);
@@ -46,19 +54,13 @@ export const getColumnsForBoard = async (
 
 // Update a column
 export const updateColumn = async (
-  req: Request,
+  req: Request<{}, any, UpdateColumnRequestInput>,
   res: Response,
   next: NextFunction
 ) => {
   try {
-    const { columnId, name } = req.body;
-    if (!columnId || !name) {
-      res
-        .status(400)
-        .json({ success: false, message: "columnId and name are required" });
-      return;
-    }
-    const result = await columnService.updateColumn(columnId, name);
+    const updateColumnDto: UpdateColumnDto = req.body;
+    const result = await columnService.updateColumn(updateColumnDto);
     res.status(200).json(result);
   } catch (error) {
     logger.error(`Update Column Controller Error: ${error}`);
@@ -68,17 +70,15 @@ export const updateColumn = async (
 
 // Delete a column
 export const deleteColumn = async (
-  req: Request,
+  req: Request<ColumnIdParam>,
   res: Response,
   next: NextFunction
 ) => {
   try {
-    const columnId = req.params.columnId || req.body.columnId;
-    if (!columnId) {
-      res.status(400).json({ success: false, message: "columnId is required" });
-      return;
-    }
-    const result = await columnService.deleteColumn(columnId);
+    const deleteColumnDto: DeleteColumnDto = {
+      columnId: req.params.columnId,
+    };
+    const result = await columnService.deleteColumn(deleteColumnDto.columnId);
     res.status(200).json(result);
   } catch (error) {
     logger.error(`Delete Column Controller Error: ${error}`);
@@ -88,22 +88,18 @@ export const deleteColumn = async (
 
 // Reorder tasks in a column
 export const reorderColumnTasks = async (
-  req: Request,
+  req: Request<ColumnIdParam, any, ReorderColumnTasksRequestInput>,
   res: Response,
   next: NextFunction
 ) => {
   try {
-    const { columnId, orderedTaskIds } = req.body;
-    if (!columnId || !Array.isArray(orderedTaskIds)) {
-      res.status(400).json({
-        success: false,
-        message: "columnId and orderedTaskIds array are required",
-      });
-      return;
-    }
+    const reorderDto: ReorderColumnTasksDto = {
+      columnId: req.params.columnId,
+      orderedTaskIds: req.body.orderedTaskIds,
+    };
     const result = await columnService.reorderColumnTasks(
-      columnId,
-      orderedTaskIds
+      reorderDto.columnId,
+      reorderDto.orderedTaskIds
     );
     res.status(200).json(result);
   } catch (error) {

@@ -1,6 +1,9 @@
 // Board schemas
 export * from "./board.schema";
 
+// Column schemas
+export * from "./column.schema";
+
 // Add other schema exports here as we create them
 // export * from "./organization.schema";
 // export * from "./user.schema";
