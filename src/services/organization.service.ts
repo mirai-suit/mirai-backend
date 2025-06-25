@@ -1,6 +1,7 @@
 import prisma from "src/config/prisma/prisma.client";
 import CustomError from "src/shared/exceptions/CustomError";
 import logger from "src/utils/logger";
+import { OrganizationRole } from "src/interfaces/enums/organization";
 
 // Create a new organization
 export const createOrganization = async (name: string, ownerId: string) => {
@@ -8,24 +9,25 @@ export const createOrganization = async (name: string, ownerId: string) => {
     const organization = await prisma.organization.create({
       data: {
         name,
+        creatorId: ownerId, // Set the creator
         organizationUser: {
           create: {
             userId: ownerId,
-            role: 'ADMIN',
+            role: OrganizationRole.ADMIN, // Use enum instead of string
           },
         },
       },
     });
 
     if (!organization) {
-      throw new CustomError(404, 'Cannot Create Organization');
+      throw new CustomError(404, "Cannot Create Organization");
     }
 
     return { success: true, organization };
   } catch (error) {
     logger.error(`Error in Organization/Create: ${error}`);
     if (error instanceof CustomError) throw error;
-    throw new CustomError(500, 'Failed to Create Organization');
+    throw new CustomError(500, "Failed to Create Organization");
   }
 };
 
@@ -37,7 +39,7 @@ export const addMemberToOrganization = async ({
 }: {
   organization: string;
   userId: string;
-  role: string;
+  role: OrganizationRole;
 }) => {
   try {
     const added = await prisma.organizationUser.create({
@@ -49,14 +51,14 @@ export const addMemberToOrganization = async ({
     });
 
     if (!added) {
-      throw new CustomError(404, 'Cannot Add Member to Organization');
+      throw new CustomError(404, "Cannot Add Member to Organization");
     }
 
     return { success: true, user: added };
   } catch (error) {
     logger.error(`Error Adding user: ${error}`);
     if (error instanceof CustomError) throw error;
-    throw new CustomError(500, 'Failed to Add user to Organization');
+    throw new CustomError(500, "Failed to Add user to Organization");
   }
 };
 
@@ -76,14 +78,14 @@ export const removeMemberFromOrganization = async (
     });
 
     if (!removed) {
-      throw new CustomError(404, 'Member not found in organization');
+      throw new CustomError(404, "Member not found in organization");
     }
 
     return { success: true, user: removed };
   } catch (error) {
     logger.error(`Error Removing user: ${error}`);
     if (error instanceof CustomError) throw error;
-    throw new CustomError(500, 'Failed to Remove Member from Organization');
+    throw new CustomError(500, "Failed to Remove Member from Organization");
   }
 };
 
@@ -91,7 +93,7 @@ export const removeMemberFromOrganization = async (
 export const changeUserRoleInOrganization = async (
   orgId: string,
   userId: string,
-  newRole: string
+  newRole: OrganizationRole
 ) => {
   try {
     const updated = await prisma.organizationUser.update({
@@ -107,14 +109,14 @@ export const changeUserRoleInOrganization = async (
     });
 
     if (!updated) {
-      throw new CustomError(404, 'User not found or role not updated');
+      throw new CustomError(404, "User not found or role not updated");
     }
 
     return { success: true, user: updated };
   } catch (error) {
     logger.error(`Error Changing Role: ${error}`);
     if (error instanceof CustomError) throw error;
-    throw new CustomError(500, 'Failed to Change Role');
+    throw new CustomError(500, "Failed to Change Role");
   }
 };
 
@@ -129,7 +131,7 @@ export const getOrganizationMembers = async (orgId: string) => {
     return { success: true, members };
   } catch (error) {
     logger.error(`Error Fetching Members: ${error}`);
-    throw new CustomError(500, 'Failed to Fetch Members');
+    throw new CustomError(500, "Failed to Fetch Members");
   }
 };
 
@@ -141,12 +143,19 @@ export const getUserOrganizations = async (userId: string) => {
       include: { organization: true },
     });
 
-    const organizations = memberships.map((m) => m.organization);
+    // Include user's role in each organization
+    const organizations = memberships.map((membership) => ({
+      ...membership.organization,
+      role: membership.role, // Add the user's role in this organization
+      memberCount: 0, // Will be populated by separate query if needed
+      boardCount: 0, // Will be populated by separate query if needed
+      isCreator: membership.organization.creatorId === userId,
+    }));
 
     return { success: true, organizations };
   } catch (error) {
     logger.error(`Error Fetching Organizations: ${error}`);
-    throw new CustomError(500, 'Failed to Fetch Organizations');
+    throw new CustomError(500, "Failed to Fetch Organizations");
   }
 };
 
@@ -162,13 +171,13 @@ export const getOrganizationDetails = async (orgId: string) => {
     });
 
     if (!organization) {
-      throw new CustomError(404, 'Organization not found');
+      throw new CustomError(404, "Organization not found");
     }
 
     return { success: true, organization };
   } catch (error) {
     logger.error(`Error Fetching Organization Details: ${error}`);
     if (error instanceof CustomError) throw error;
-    throw new CustomError(500, 'Failed to Fetch Organization Details');
+    throw new CustomError(500, "Failed to Fetch Organization Details");
   }
 };

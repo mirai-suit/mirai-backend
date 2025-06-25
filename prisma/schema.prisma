@@ -22,6 +22,12 @@ enum UserRole {
   MEMBER
 }
 
+enum OrganizationRole {
+  ADMIN
+  EDITOR
+  MEMBER
+}
+
 model User {
   id               String             @id @default(uuid())
   firstName        String
@@ -36,6 +42,7 @@ model User {
   teams            Team[]
   tasks            Task[]
   boardAccess      BoardAccess[]
+  createdOrganizations Organization[] @relation("OrganizationCreator")
   createdAt        DateTime           @default(now())
   updatedAt        DateTime           @updatedAt
 
@@ -77,6 +84,8 @@ model UserPreferences {
 model Organization {
   id               String             @id @default(uuid())
   name             String
+  creatorId        String?            // Track who created the organization
+  creator          User?              @relation("OrganizationCreator", fields: [creatorId], references: [id])
   boards           Board[]
   createdAt        DateTime           @default(now())
   updatedAt        DateTime           @updatedAt
@@ -86,12 +95,14 @@ model Organization {
 }
 
 model OrganizationUser {
-  id             String       @id @default(uuid())
-  organization   Organization @relation(fields: [organizationId], references: [id])
+  id             String           @id @default(uuid())
+  organization   Organization     @relation(fields: [organizationId], references: [id])
   organizationId String
-  user           User         @relation(fields: [userId], references: [id])
+  user           User             @relation(fields: [userId], references: [id])
   userId         String
-  role           String       @default("MEMBER")
+  role           OrganizationRole @default(MEMBER)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
 
   @@unique([organizationId, userId])
   @@map("organization_users")
@@ -154,14 +165,34 @@ model Column {
   @@map("columns")
 }
 
+enum TaskStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  BLOCKED
+  UNDER_REVIEW
+  COMPLETED
+  CANCELLED
+  CUSTOM
+}
+
+enum TaskPriority {
+  LOWEST
+  LOW
+  MEDIUM
+  HIGH
+  HIGHEST
+}
+
 model Task {
   id             String        @id @default(uuid())
   title          String
   description    String?
-  status         String
-  dueDate        DateTime?
-  priority       Int?
-  order          Int?
+  status         TaskStatus    @default(NOT_STARTED)
+  customStatus   String?       // For user-defined statuses when status = CUSTOM
+  startDate      DateTime?     // Task start date
+  dueDate        DateTime?     // Task due date
+  priority       TaskPriority? @default(MEDIUM)
+  order          Int           @default(0)
   column         Column        @relation(fields: [columnId], references: [id])
   columnId       String
   isRecurring    Boolean       @default(false)

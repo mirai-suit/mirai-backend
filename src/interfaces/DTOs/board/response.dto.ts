@@ -13,10 +13,12 @@ export interface TaskInBoardDto {
   id: string;
   title: string;
   status: string;
-  columnId: string;
-  order?: number;
-  priority?: number;
+  customStatus?: string;
+  startDate?: string;
   dueDate?: string;
+  priority?: string;
+  order: number;
+  columnId: string;
   createdAt: string;
   updatedAt: string;
 }

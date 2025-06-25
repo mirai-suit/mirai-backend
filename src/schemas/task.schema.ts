@@ -1,26 +1,35 @@
 import { z } from "zod";
 
-// Task status enum
+// Task status enum - matching Prisma enum
 export const TaskStatus = z.enum([
-  "TODO",
+  "NOT_STARTED",
   "IN_PROGRESS",
-  "IN_REVIEW",
-  "DONE",
   "BLOCKED",
+  "UNDER_REVIEW",
+  "COMPLETED",
   "CANCELLED",
+  "CUSTOM",
 ]);
 
-// Task priority enum (1-5, 1 being highest)
-export const TaskPriority = z.number().int().min(1).max(5);
+// Task priority enum - matching Prisma enum
+export const TaskPriority = z.enum([
+  "LOWEST",
+  "LOW",
+  "MEDIUM",
+  "HIGH",
+  "HIGHEST",
+]);
 
 // Base task schema for common fields
 export const baseTaskSchema = z.object({
   title: z.string().min(1, "Title is required").max(255, "Title too long"),
   description: z.string().max(1000, "Description too long").optional(),
-  status: TaskStatus.default("TODO"),
+  status: TaskStatus.default("NOT_STARTED"),
+  customStatus: z.string().max(50, "Custom status too long").optional(),
+  startDate: z.string().datetime().optional(),
   dueDate: z.string().datetime().optional(),
-  priority: TaskPriority.optional(),
-  order: z.number().int().min(0).optional(),
+  priority: TaskPriority.default("MEDIUM"),
+  order: z.number().int().min(0).default(0),
   isRecurring: z.boolean().default(false),
 });
 
@@ -44,6 +53,8 @@ export const updateTaskSchema = z.object({
     .optional(),
   description: z.string().max(1000, "Description too long").optional(),
   status: TaskStatus.optional(),
+  customStatus: z.string().max(50, "Custom status too long").optional(),
+  startDate: z.string().datetime().optional(),
   dueDate: z.string().datetime().optional(),
   priority: TaskPriority.optional(),
   order: z.number().int().min(0).optional(),

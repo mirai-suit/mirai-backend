@@ -1,16 +1,27 @@
-import { Request, Response, NextFunction } from 'express';
-import * as organizationService from '../services/organization.service';
-import logger from 'src/utils/logger';
+import { Request, Response, NextFunction } from "express";
+import * as organizationService from "../services/organization.service";
+import logger from "src/utils/logger";
+import { OrganizationRequest } from "../middlewares/organization.middleware";
+import { OrganizationRole } from "../interfaces/enums/organization";
 
 // Create a new organization
-export const createOrganization = async (req: Request, res: Response, next: NextFunction) => {
+export const createOrganization = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
   try {
     const { name } = req.body;
     const ownerId = req.user?.id; // Assumes user is authenticated and user id is attached to req.user
 
     if (!name || !ownerId) {
-       res.status(400).json({ success: false, message: 'Organization name and ownerId are required' });
-       return;
+      res
+        .status(400)
+        .json({
+          success: false,
+          message: "Organization name and ownerId are required",
+        });
+      return;
     }
 
     const result = await organizationService.createOrganization(name, ownerId);
@@ -21,17 +32,34 @@ export const createOrganization = async (req: Request, res: Response, next: Next
   }
 };
 
-// Add a member to an organization
-export const addMemberToOrganization = async (req: Request, res: Response, next: NextFunction) => {
+// Add a member to an organization (requires admin role)
+export const addMemberToOrganization = async (
+  req: OrganizationRequest,
+  res: Response,
+  next: NextFunction
+) => {
   try {
-    const { organization, userId, role } = req.body;
+    const { userId, role = OrganizationRole.MEMBER } = req.body;
+    const organizationId = req.organizationId!;
 
-    if (!organization || !userId || !role) {
-       res.status(400).json({ success: false, message: 'organization, userId, and role are required' });
-       return;
+    if (!userId) {
+      res.status(400).json({ success: false, message: "userId is required" });
+      return;
     }
 
-    const result = await organizationService.addMemberToOrganization({ organization, userId, role });
+    // Validate role
+    if (!Object.values(OrganizationRole).includes(role)) {
+      res
+        .status(400)
+        .json({ success: false, message: "Invalid role specified" });
+      return;
+    }
+
+    const result = await organizationService.addMemberToOrganization({
+      organization: organizationId,
+      userId,
+      role,
+    });
     res.status(200).json(result);
   } catch (error) {
     logger.error(`Add Member Controller Error: ${error}`);
@@ -39,17 +67,25 @@ export const addMemberToOrganization = async (req: Request, res: Response, next:
   }
 };
 
-// Remove a member from organization
-export const removeMemberFromOrganization = async (req: Request, res: Response, next: NextFunction) => {
+// Remove a member from organization (requires admin role)
+export const removeMemberFromOrganization = async (
+  req: OrganizationRequest,
+  res: Response,
+  next: NextFunction
+) => {
   try {
-    const { orgId, userId } = req.body;
+    const { userId } = req.body;
+    const organizationId = req.organizationId!;
 
-    if (!orgId || !userId) {
-       res.status(400).json({ success: false, message: 'orgId and userId are required' });
-       return;
+    if (!userId) {
+      res.status(400).json({ success: false, message: "userId is required" });
+      return;
     }
 
-    const result = await organizationService.removeMemberFromOrganization(orgId, userId);
+    const result = await organizationService.removeMemberFromOrganization(
+      organizationId,
+      userId
+    );
     res.status(200).json(result);
   } catch (error) {
     logger.error(`Remove Member Controller Error: ${error}`);
@@ -57,17 +93,36 @@ export const removeMemberFromOrganization = async (req: Request, res: Response, 
   }
 };
 
-// Change role of a member
-export const changeUserRoleInOrganization = async (req: Request, res: Response, next: NextFunction) => {
+// Change role of a member (requires admin role)
+export const changeUserRoleInOrganization = async (
+  req: OrganizationRequest,
+  res: Response,
+  next: NextFunction
+) => {
   try {
-    const { orgId, userId, newRole } = req.body;
+    const { userId, newRole } = req.body;
+    const organizationId = req.organizationId!;
 
-    if (!orgId || !userId || !newRole) {
-       res.status(400).json({ success: false, message: 'orgId, userId, and newRole are required' });
-       return;
+    if (!userId || !newRole) {
+      res
+        .status(400)
+        .json({ success: false, message: "userId and newRole are required" });
+      return;
     }
 
-    const result = await organizationService.changeUserRoleInOrganization(orgId, userId, newRole);
+    // Validate role
+    if (!Object.values(OrganizationRole).includes(newRole)) {
+      res
+        .status(400)
+        .json({ success: false, message: "Invalid role specified" });
+      return;
+    }
+
+    const result = await organizationService.changeUserRoleInOrganization(
+      organizationId,
+      userId,
+      newRole
+    );
     res.status(200).json(result);
   } catch (error) {
     logger.error(`Change Role Controller Error: ${error}`);
@@ -76,16 +131,17 @@ export const changeUserRoleInOrganization = async (req: Request, res: Response, 
 };
 
 // Get all members of an organization
-export const getOrganizationMembers = async (req: Request, res: Response, next: NextFunction) => {
+export const getOrganizationMembers = async (
+  req: OrganizationRequest,
+  res: Response,
+  next: NextFunction
+) => {
   try {
-    const orgId = req.params.orgId || req.body.orgId;
+    const organizationId = req.organizationId!;
 
-    if (!orgId) {
-       res.status(400).json({ success: false, message: 'orgId is required' });
-       return;
-    }
-
-    const result = await organizationService.getOrganizationMembers(orgId);
+    const result = await organizationService.getOrganizationMembers(
+      organizationId
+    );
     res.status(200).json(result);
   } catch (error) {
     logger.error(`Get Members Controller Error: ${error}`);
@@ -94,12 +150,16 @@ export const getOrganizationMembers = async (req: Request, res: Response, next: 
 };
 
 // Get all organizations a user belongs to
-export const getUserOrganizations = async (req: Request, res: Response, next: NextFunction) => {
+export const getUserOrganizations = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
   try {
     const userId = req.user?.id || req.body.userId;
 
     if (!userId) {
-       res.status(400).json({ success: false, message: 'userId is required' });
+      res.status(400).json({ success: false, message: "userId is required" });
     }
 
     const result = await organizationService.getUserOrganizations(userId);
@@ -111,15 +171,17 @@ export const getUserOrganizations = async (req: Request, res: Response, next: Ne
 };
 
 // Get full details of an organization
-export const getOrganizationDetails = async (req: Request, res: Response, next: NextFunction) => {
+export const getOrganizationDetails = async (
+  req: OrganizationRequest,
+  res: Response,
+  next: NextFunction
+) => {
   try {
-    const orgId = req.params.orgId || req.body.orgId;
+    const organizationId = req.organizationId!;
 
-    if (!orgId) {
-       res.status(400).json({ success: false, message: 'orgId is required' });
-    }
-
-    const result = await organizationService.getOrganizationDetails(orgId);
+    const result = await organizationService.getOrganizationDetails(
+      organizationId
+    );
     res.status(200).json(result);
   } catch (error) {
     logger.error(`Get Org Details Controller Error: ${error}`);

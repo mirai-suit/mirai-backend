@@ -21,7 +21,7 @@ const transformTaskToDto = (task: any): TaskResponseDto => {
     status: task.status,
     dueDate: task.dueDate ? task.dueDate.toISOString() : undefined,
     priority: task.priority || undefined,
-    order: task.order || undefined,
+    order: task.order || 0,
     isRecurring: task.isRecurring,
     boardId: task.boardId,
     columnId: task.columnId,

@@ -4,9 +4,11 @@ export interface TaskResponseDto {
   title: string;
   description?: string;
   status: string;
+  customStatus?: string;
+  startDate?: string;
   dueDate?: string;
-  priority?: number;
-  order?: number;
+  priority?: string;
+  order: number;
   isRecurring: boolean;
   boardId: string;
   columnId: string;
