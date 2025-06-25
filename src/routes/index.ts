@@ -5,6 +5,7 @@ import organizationRoutes from "./organization.routes";
 import invitationRoutes from "./invitation.routes";
 import taskRoutes from "./task.routes";
 import boardRoutes from "./board.routes";
+import messagingRoutes from "./messaging.routes";
 import columnRoutes from "./column.routes"; // Assuming you have a column.routes.ts file
 
 const router = Router();
@@ -22,5 +23,6 @@ router.use("/board", boardRoutes);
 router.use("/column", columnRoutes); // Assuming you have a column.routes.ts file
 router.use("/organization", organizationRoutes);
 router.use("/invitation", invitationRoutes); // Public invitation endpoints
+router.use("/chats/:boardId/messages", messagingRoutes); // Private invitation endpoints
 
 export default router;
