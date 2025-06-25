@@ -1,9 +1,5 @@
 import { getEmailConfig } from "src/config/email/email";
 import nodemailer from "nodemailer";
-import path from "path";
-import exphbs from "nodemailer-express-handlebars";
-import { engine } from "express-handlebars";
-import type { NodemailerExpressHandlebarsOptions } from "nodemailer-express-handlebars";
 
 const emailConfig = getEmailConfig();
 
@@ -23,7 +19,7 @@ interface EmailOptions {
   subject: string;
 }
 
-export async function sendEmail(options: EmailOptions , html: string) {
+export async function sendEmail(options: EmailOptions, html: string) {
   try {
     const mailOptions = {
       from: emailConfig.from,
@@ -33,10 +29,10 @@ export async function sendEmail(options: EmailOptions , html: string) {
     };
 
     const info = await transporter.sendMail(mailOptions);
-    console.log('Message sent: %s', info.messageId);
+    console.log("Message sent: %s", info.messageId);
     return info;
   } catch (error) {
-    console.error('Error sending email:', error);
-    throw new Error('Failed to send email');
+    console.error("Error sending email:", error);
+    throw new Error("Failed to send email");
   }
 }

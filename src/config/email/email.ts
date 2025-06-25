@@ -19,5 +19,5 @@ interface EmailConfig {
       user: process.env.EMAIL_USER || '',
       pass: process.env.EMAIL_PASSWORD || '',
     },
-    from: process.env.EMAIL_FROM || '"MyFightSpace" <no-reply@myfightspace.com>',
+    from: process.env.EMAIL_FROM || '"Mirai" <no-reply@mirai.com>',
   });

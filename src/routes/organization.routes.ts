@@ -1,5 +1,6 @@
 import { Router } from "express";
 import * as organizationController from "../controllers/organization.controller";
+import * as invitationController from "../controllers/invitation.controller";
 import { verifyToken } from "../middlewares/auth.middleware";
 import {
   checkOrganizationMembership,
@@ -50,5 +51,27 @@ router.get(
 
 // Get organization details (all members can view)
 router.get("/:organizationId", organizationController.getOrganizationDetails);
+
+// === INVITATION ROUTES ===
+
+// Send invitation (requires inviteUsers permission - ADMIN or EDITOR)
+router.post(
+  "/:organizationId/invite",
+  requireOrganizationPermission("inviteUsers"),
+  invitationController.sendInvitation
+);
+
+// Get pending invitations (all members can view)
+router.get(
+  "/:organizationId/invitations",
+  invitationController.getOrganizationInvitations
+);
+
+// Revoke invitation (requires inviteUsers permission or be the inviter)
+router.delete(
+  "/:organizationId/invitations/:invitationId",
+  requireOrganizationPermission("inviteUsers"),
+  invitationController.revokeInvitation
+);
 
 export default router;

@@ -2,7 +2,6 @@ import prisma from "src/config/prisma/prisma.client";
 import { updateUserInfo } from "src/interfaces/DTOs/user";
 import CustomError from "src/shared/exceptions/CustomError";
 import logger from "src/utils/logger";
-import { createJwtPayload, generateAndSaveRefreshToken, generateToken } from "src/helpers/auth/auth.helpers";
 import * as bcrypt from 'bcrypt';
 import { checkDuplicateField, sanitizeUserData } from "src/helpers/user/user.helper";
 import { userSchema } from "src/interfaces/schemas/create/auth";

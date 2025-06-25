@@ -9,7 +9,7 @@ export default function errorHandler(
   error: unknown,
   req: Request,
   res: Response,
-  next: NextFunction
+  _next: NextFunction
 ): void {
   logger.error(`An error occurred in ${req.method} ${req.path}:`, error);
 

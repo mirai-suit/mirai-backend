@@ -1,9 +1,8 @@
-import {  PasswordResetInput, requestResetPasswordInput, VerificationCodeInput } from './../interfaces/DTOs/auth/index';
+import {  PasswordResetInput } from './../interfaces/DTOs/auth/index';
 import { NextFunction, Request, Response } from 'express';
 import logger from '../utils/logger';
 import * as authService from '../services/auth.service';
 import { LoginInput, UserInput } from '../interfaces/DTOs/auth';
-import { otpPurpose } from 'src/interfaces/enums/auth';
 import CustomError from 'src/shared/exceptions/CustomError';
 import jwt from 'jsonwebtoken';
 
