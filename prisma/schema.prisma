@@ -53,7 +53,7 @@ model User {
   sentInvitations      Invitation[]       @relation("InvitationSender")
   createdAt            DateTime           @default(now())
   updatedAt            DateTime           @updatedAt
-
+  messages             Message[]
   @@map("user_")
 }
 
@@ -156,7 +156,7 @@ model Board {
   accessList     BoardAccess[]
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
-
+  messageThread  MessageThread?
   @@map("boards")
 }
 
@@ -248,6 +248,25 @@ model Invitation {
 
   @@unique([email, organizationId]) // Prevent duplicate pending invitations
   @@map("invitations")
+}
+
+model MessageThread {
+  id        String    @id @default(uuid())
+  board     Board?     @relation(fields: [boardId], references: [id])
+  boardId   String?    @unique
+  messages  Message[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model Message {
+  id        String    @id @default(uuid())
+  thread    MessageThread @relation(fields: [threadId], references: [id])
+  threadId  String
+  sender    User      @relation(fields: [senderId], references: [id])
+  senderId  String
+  text      String
+  createdAt DateTime  @default(now())
 }
 
 // model user {

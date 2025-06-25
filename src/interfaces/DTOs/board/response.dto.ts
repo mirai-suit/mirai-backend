@@ -1,3 +1,5 @@
+import { MessageThread } from "../messages/response.dto";
+
 // Column Response DTO (minimal for board context - avoid circular references)
 export interface ColumnInBoardDto {
   id: string;
@@ -67,6 +69,8 @@ export interface BoardResponseDto {
   createdAt: string;
   updatedAt: string;
   columns?: ColumnInBoardDto[]; // Use minimal column data
+  messageThreadId?: string; // Optional, if message thread is not used
+  messageThread?: MessageThread;
   tasks?: TaskInBoardDto[]; // Use minimal task data
   team?: TeamResponseDto[];
   accessList?: BoardAccessResponseDto[];
