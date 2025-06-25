@@ -19,14 +19,29 @@ interface EmailOptions {
   subject: string;
 }
 
-export async function sendEmail(options: EmailOptions, html: string) {
+interface EmailContent {
+  html?: string;
+  text?: string;
+}
+
+export async function sendEmail(
+  options: EmailOptions,
+  content: string | EmailContent
+) {
   try {
-    const mailOptions = {
+    let mailOptions: any = {
       from: emailConfig.from,
       to: options.to,
       subject: options.subject,
-      html,
     };
+
+    // Handle both old string format and new object format
+    if (typeof content === "string") {
+      mailOptions.html = content;
+    } else {
+      if (content.html) mailOptions.html = content.html;
+      if (content.text) mailOptions.text = content.text;
+    }
 
     const info = await transporter.sendMail(mailOptions);
     console.log("Message sent: %s", info.messageId);

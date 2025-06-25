@@ -3,6 +3,10 @@ import CustomError from "src/shared/exceptions/CustomError";
 import logger from "src/utils/logger";
 import { OrganizationRole } from "src/interfaces/enums/organization";
 import { sendEmail } from "./email.service";
+import {
+  generateInvitationEmailTemplate,
+  generateInvitationEmailPlainText,
+} from "src/templates/email/invitation.template";
 import jwt from "jsonwebtoken";
 import { addDays } from "date-fns";
 
@@ -136,49 +140,36 @@ export const sendOrganizationInvitation = async ({
     });
 
     // Send invitation email
-    const invitationUrl = `${process.env.FRONTEND_URL}/invitation/${token}`;
+    const invitationUrl = `${process.env.FRONTEND_URL}/invite/${token}`;
 
-    const emailHtml = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-        <h2 style="color: #333;">You're invited to join ${
-          organization.name
-        }!</h2>
-        
-        <p>Hi there,</p>
-        
-        <p><strong>${inviter.firstName} ${
-      inviter.lastName
-    }</strong> has invited you to join <strong>${
-      organization.name
-    }</strong> as a <strong>${role.toLowerCase()}</strong>.</p>
-        
-        <div style="margin: 30px 0; text-align: center;">
-          <a href="${invitationUrl}" 
-             style="background-color: #007bff; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; display: inline-block;">
-            Accept Invitation
-          </a>
-        </div>
-        
-        <p style="font-size: 14px; color: #666;">
-          This invitation will expire in 7 days. If you're having trouble with the button above, 
-          copy and paste this link into your browser: <br>
-          <a href="${invitationUrl}">${invitationUrl}</a>
-        </p>
-        
-        <hr style="margin: 30px 0; border: none; border-top: 1px solid #eee;">
-        
-        <p style="font-size: 12px; color: #999;">
-          If you didn't expect this invitation, you can safely ignore this email.
-        </p>
-      </div>
-    `;
+    // Generate beautiful email template
+    const emailHtml = generateInvitationEmailTemplate({
+      organizationName: organization.name,
+      inviterName: `${inviter.firstName} ${inviter.lastName}`,
+      inviteeEmail: email,
+      role,
+      invitationUrl,
+      expirationDays: 7,
+    });
+
+    const emailPlainText = generateInvitationEmailPlainText({
+      organizationName: organization.name,
+      inviterName: `${inviter.firstName} ${inviter.lastName}`,
+      inviteeEmail: email,
+      role,
+      invitationUrl,
+      expirationDays: 7,
+    });
 
     await sendEmail(
       {
         to: email,
-        subject: `Invitation to join ${organization.name}`,
+        subject: `You're invited to join ${organization.name} on Mirai`,
       },
-      emailHtml
+      {
+        html: emailHtml,
+        text: emailPlainText,
+      }
     );
 
     logger.info(
