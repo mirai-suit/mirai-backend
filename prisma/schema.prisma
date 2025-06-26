@@ -28,24 +28,32 @@ enum OrganizationRole {
   MEMBER
 }
 
-model User {
-  id               String             @id @default(uuid())
-  firstName        String
-  lastName         String
-  avatar           String?
-  email            String             @unique
-  password         String
-  refreshToken     RefreshToken?
-  refreshTokenId   String?            @unique
-  organizationUser OrganizationUser[]
-  UserPreferences  UserPreferences[]
-  teams            Team[]
-  tasks            Task[]
-  boardAccess      BoardAccess[]
-  createdOrganizations Organization[] @relation("OrganizationCreator")
-  createdAt        DateTime           @default(now())
-  updatedAt        DateTime           @updatedAt
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  EXPIRED
+  REVOKED
+}
 
+model User {
+  id                   String             @id @default(uuid())
+  firstName            String
+  lastName             String
+  avatar               String?
+  email                String             @unique
+  password             String
+  refreshToken         RefreshToken?
+  refreshTokenId       String?            @unique
+  organizationUser     OrganizationUser[]
+  UserPreferences      UserPreferences[]
+  teams                Team[]
+  tasks                Task[]
+  boardAccess          BoardAccess[]
+  createdOrganizations Organization[]     @relation("OrganizationCreator")
+  sentInvitations      Invitation[]       @relation("InvitationSender")
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+  messages             Message[]
   @@map("user_")
 }
 
@@ -87,6 +95,7 @@ model Organization {
   creatorId        String?            // Track who created the organization
   creator          User?              @relation("OrganizationCreator", fields: [creatorId], references: [id])
   boards           Board[]
+  invitations      Invitation[]       @relation("OrganizationInvitations")
   createdAt        DateTime           @default(now())
   updatedAt        DateTime           @updatedAt
   organizationUser OrganizationUser[]
@@ -147,7 +156,7 @@ model Board {
   accessList     BoardAccess[]
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
-
+  messageThread  MessageThread?
   @@map("boards")
 }
 
@@ -220,6 +229,44 @@ model BoardAccess {
 
   @@unique([userId, boardId])
   @@map("board_access")
+}
+
+model Invitation {
+  id             String            @id @default(uuid())
+  email          String            // Email of the invited user
+  role           OrganizationRole  @default(MEMBER) // Role to assign when invitation is accepted
+  token          String            @unique // Unique token for the invitation link
+  status         InvitationStatus  @default(PENDING)
+  expiresAt      DateTime          // When invitation expires
+  acceptedAt     DateTime?         // When invitation was accepted
+  organization   Organization      @relation("OrganizationInvitations", fields: [organizationId], references: [id], onDelete: Cascade)
+  organizationId String
+  invitedBy      User              @relation("InvitationSender", fields: [invitedById], references: [id])
+  invitedById    String
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  @@unique([email, organizationId]) // Prevent duplicate pending invitations
+  @@map("invitations")
+}
+
+model MessageThread {
+  id        String    @id @default(uuid())
+  board     Board?     @relation(fields: [boardId], references: [id])
+  boardId   String?    @unique
+  messages  Message[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model Message {
+  id        String    @id @default(uuid())
+  thread    MessageThread @relation(fields: [threadId], references: [id])
+  threadId  String
+  sender    User      @relation(fields: [senderId], references: [id])
+  senderId  String
+  text      String
+  createdAt DateTime  @default(now())
 }
 
 // model user {

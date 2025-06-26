@@ -52,6 +52,9 @@ export const createBoard = async (data: {
         isReadOnly: data.isReadOnly ?? false,
         isShared: data.isShared ?? false,
         isDefault: data.isDefault ?? false,
+        messageThread:{
+          create: {}, // Create an empty message thread for the board
+        },
         columns: data.defaultColumns
           ? {
               create: data.defaultColumns.map((name, index) => ({
@@ -73,6 +76,13 @@ export const createBoard = async (data: {
         columns: {
           orderBy: { order: "asc" },
         },
+        messageThread: {
+          include: {
+            messages: {
+              orderBy: { createdAt: "asc" },
+            },
+          },
+        }, // Include the message thread
       },
     });
 
@@ -98,6 +108,18 @@ export const createBoard = async (data: {
         isDefault: board.isDefault,
         createdAt: board.createdAt.toISOString(),
         updatedAt: board.updatedAt.toISOString(),
+        messageThread: board.messageThread
+          ? {
+              ...board.messageThread,
+              boardId: board.messageThread.boardId ?? board.id,
+              messages: board.messageThread.messages.map((msg: any) => ({
+                ...msg,
+                createdAt: msg.createdAt.toISOString(),
+              })),
+              createdAt: board.messageThread.createdAt.toISOString(),
+              updatedAt: board.messageThread.updatedAt.toISOString(),
+            }
+          : undefined,
         columns: board.columns.map((col) => ({
           id: col.id,
           name: col.name,
@@ -128,6 +150,13 @@ export const getBoardById = async (
           include: { tasks: true },
           orderBy: { order: "asc" },
         },
+        messageThread: {
+          include: {
+            messages: {
+              orderBy: { createdAt: "asc" },
+            },
+          },
+        },
         tasks: true,
         team: true,
         accessList: { include: { user: true } },
@@ -154,6 +183,18 @@ export const getBoardById = async (
         isDefault: board.isDefault,
         createdAt: board.createdAt.toISOString(),
         updatedAt: board.updatedAt.toISOString(),
+        messageThread: board.messageThread
+          ? {
+              ...board.messageThread,
+              boardId: board.messageThread.boardId ?? board.id,
+              messages: board.messageThread.messages.map((msg: any) => ({
+                ...msg,
+                createdAt: msg.createdAt.toISOString(),
+              })),
+              createdAt: board.messageThread.createdAt.toISOString(),
+              updatedAt: board.messageThread.updatedAt.toISOString(),
+            }
+          : undefined,
         columns: board.columns.map((col) => ({
           id: col.id,
           name: col.name,

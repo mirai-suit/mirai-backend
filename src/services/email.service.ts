@@ -1,9 +1,5 @@
 import { getEmailConfig } from "src/config/email/email";
 import nodemailer from "nodemailer";
-import path from "path";
-import exphbs from "nodemailer-express-handlebars";
-import { engine } from "express-handlebars";
-import type { NodemailerExpressHandlebarsOptions } from "nodemailer-express-handlebars";
 
 const emailConfig = getEmailConfig();
 
@@ -48,10 +44,10 @@ export async function sendEmail(
     }
 
     const info = await transporter.sendMail(mailOptions);
-    console.log('Message sent: %s', info.messageId);
+    console.log("Message sent: %s", info.messageId);
     return info;
   } catch (error) {
-    console.error('Error sending email:', error);
-    throw new Error('Failed to send email');
+    console.error("Error sending email:", error);
+    throw new Error("Failed to send email");
   }
 }

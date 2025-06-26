@@ -13,10 +13,8 @@ import {
   verifyRefreshToken,
   createJwtPayload,
   // sendPasswordResetEmail,
-  createPasswordResetToken,
   // deactivateOtp,
   // deactivateUserOtps,
-  validateOtp,
   // findLatestValidOtp,
 } from "src/helpers/auth/auth.helpers";
 import logger from "src/utils/logger";

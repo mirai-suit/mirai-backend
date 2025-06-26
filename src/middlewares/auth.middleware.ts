@@ -94,7 +94,7 @@ export const verifyToken = async (
 
 
 export function validateData(schema: ZodType<any, any, any>) {
-  return (req: Request, res: Response, next: NextFunction) => {
+  return (req: Request, _res: Response, next: NextFunction) => {
     try {
       schema.parse(req.body);
       next();

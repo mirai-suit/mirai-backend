@@ -1,4 +1,3 @@
-import { otpPurpose } from 'src/interfaces/enums/auth';
 import { userSchema,  passwordResetRequestSchema,  passwordResetSchema, verificationCodeSchema } from 'src/interfaces/schemas/create/auth';
 import { z } from 'zod';
 

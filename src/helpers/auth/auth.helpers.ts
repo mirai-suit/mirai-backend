@@ -2,7 +2,6 @@
 import jwt, { SignOptions } from "jsonwebtoken";
 import env from "src/config/env";
 import prisma from "src/config/prisma/prisma.client";
-import { otpPurpose } from "src/interfaces/enums/auth";
 import { sendEmail } from "src/services/email.service";
 import CustomError from "src/shared/exceptions/CustomError";
 import { v4 as uuidv4 } from "uuid";
