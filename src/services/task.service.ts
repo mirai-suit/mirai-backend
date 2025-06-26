@@ -11,6 +11,11 @@ import {
   UpdateTaskInput,
   MoveTaskInput,
 } from "../schemas/task.schema";
+import {
+  generateTaskAssignmentEmailTemplate,
+  generateTaskAssignmentEmailPlainText,
+} from "../templates/email/task-assignment.template";
+import { sendEmail } from "./email.service";
 
 // Helper function to transform Prisma task to minimal DTO
 const transformTaskToDto = (task: any): TaskResponseDto => {
@@ -26,13 +31,16 @@ const transformTaskToDto = (task: any): TaskResponseDto => {
     boardId: task.boardId,
     columnId: task.columnId,
     teamId: task.teamId || undefined,
-    assignees: task.assignees?.map((assignee: any): TaskAssigneeDto => ({
-      id: assignee.id,
-      firstName: assignee.firstName,
-      lastName: assignee.lastName,
-      email: assignee.email,
-      avatar: assignee.avatar || undefined,
-    })) || [],
+    assignees:
+      task.assignees?.map(
+        (assignee: any): TaskAssigneeDto => ({
+          id: assignee.id,
+          firstName: assignee.firstName,
+          lastName: assignee.lastName,
+          email: assignee.email,
+          avatar: assignee.avatar || undefined,
+        })
+      ) || [],
     createdAt: task.createdAt.toISOString(),
     updatedAt: task.updatedAt.toISOString(),
     deletedAt: task.deletedAt ? task.deletedAt.toISOString() : undefined,
@@ -42,34 +50,43 @@ const transformTaskToDto = (task: any): TaskResponseDto => {
 // Helper function to transform Prisma task to detailed DTO (with relations)
 const transformTaskToDetailDto = (task: any): TaskDetailResponseDto => {
   const baseTask = transformTaskToDto(task);
-  
+
   return {
     ...baseTask,
-    column: task.column ? {
-      id: task.column.id,
-      name: task.column.name,
-      color: task.column.color,
-      order: task.column.order,
-    } : undefined,
-    board: task.board ? {
-      id: task.board.id,
-      title: task.board.title,
-      color: task.board.color,
-      organizationId: task.board.organizationId,
-    } : undefined,
-    team: task.team ? {
-      id: task.team.id,
-      name: task.team.name,
-    } : undefined,
+    column: task.column
+      ? {
+          id: task.column.id,
+          name: task.column.name,
+          color: task.column.color,
+          order: task.column.order,
+        }
+      : undefined,
+    board: task.board
+      ? {
+          id: task.board.id,
+          title: task.board.title,
+          color: task.board.color,
+          organizationId: task.board.organizationId,
+        }
+      : undefined,
+    team: task.team
+      ? {
+          id: task.team.id,
+          name: task.team.name,
+        }
+      : undefined,
   } as TaskDetailResponseDto;
 };
 
 // Create a new task
-export const createTask = async (data: CreateTaskInput) => {
+export const createTask = async (
+  data: CreateTaskInput,
+  assignerId?: string
+) => {
   try {
     // Verify column exists and belongs to board
     const column = await prisma.column.findFirst({
-      where: { 
+      where: {
         id: data.columnId,
         boardId: data.boardId,
       },
@@ -109,9 +126,11 @@ export const createTask = async (data: CreateTaskInput) => {
         boardId: taskData.boardId,
         columnId: taskData.columnId,
         teamId: taskData.teamId,
-        assignees: taskData.assigneeIds ? {
-          connect: taskData.assigneeIds.map(id => ({ id }))
-        } : undefined,
+        assignees: taskData.assigneeIds
+          ? {
+              connect: taskData.assigneeIds.map((id) => ({ id })),
+            }
+          : undefined,
       },
       include: {
         assignees: {
@@ -121,7 +140,7 @@ export const createTask = async (data: CreateTaskInput) => {
             lastName: true,
             email: true,
             avatar: true,
-          }
+          },
         },
         column: {
           select: {
@@ -129,7 +148,7 @@ export const createTask = async (data: CreateTaskInput) => {
             name: true,
             color: true,
             order: true,
-          }
+          },
         },
         board: {
           select: {
@@ -137,16 +156,88 @@ export const createTask = async (data: CreateTaskInput) => {
             title: true,
             color: true,
             organizationId: true,
-          }
+          },
         },
         team: {
           select: {
             id: true,
             name: true,
-          }
-        }
+          },
+        },
       },
     });
+
+    // Send email notifications to assignees
+    if (task.assignees && task.assignees.length > 0) {
+      try {
+        // Get the organization details
+        const organization = await prisma.organization.findUnique({
+          where: { id: task.board.organizationId },
+          select: { name: true },
+        });
+
+        // Get the assigner details
+        let assignerName = "Project Manager";
+        if (assignerId) {
+          const assigner = await prisma.user.findUnique({
+            where: { id: assignerId },
+            select: { firstName: true, lastName: true },
+          });
+          if (assigner) {
+            assignerName = `${assigner.firstName} ${assigner.lastName}`;
+          }
+        }
+
+        // Send email to each assignee
+        for (const assignee of task.assignees) {
+          const taskUrl = `${process.env.FRONTEND_URL}/u/dashboard/o/${task.board.organizationId}/b/${task.boardId}/t/${task.id}`;
+
+          const emailHtml = generateTaskAssignmentEmailTemplate({
+            taskTitle: task.title,
+            taskDescription: task.description || undefined,
+            assignerName,
+            assigneeName: `${assignee.firstName} ${assignee.lastName}`,
+            organizationName: organization?.name || "Unknown Organization",
+            boardTitle: task.board.title,
+            columnName: task.column.name,
+            dueDate: task.dueDate?.toISOString(),
+            priority: task.priority || undefined,
+            taskUrl,
+          });
+
+          const emailText = generateTaskAssignmentEmailPlainText({
+            taskTitle: task.title,
+            taskDescription: task.description || undefined,
+            assignerName,
+            assigneeName: `${assignee.firstName} ${assignee.lastName}`,
+            organizationName: organization?.name || "Unknown Organization",
+            boardTitle: task.board.title,
+            columnName: task.column.name,
+            dueDate: task.dueDate?.toISOString(),
+            priority: task.priority || undefined,
+            taskUrl,
+          });
+
+          await sendEmail(
+            {
+              to: assignee.email,
+              subject: `New Task Assignment: ${task.title}`,
+            },
+            {
+              html: emailHtml,
+              text: emailText,
+            }
+          );
+
+          logger.info(
+            `Task assignment email sent to ${assignee.email} for task ${task.id}`
+          );
+        }
+      } catch (emailError) {
+        logger.error(`Failed to send task assignment emails: ${emailError}`);
+        // Don't fail the task creation if email sending fails
+      }
+    }
 
     return {
       success: true,
@@ -164,7 +255,7 @@ export const createTask = async (data: CreateTaskInput) => {
 export const getTaskById = async (taskId: string) => {
   try {
     const task = await prisma.task.findUnique({
-      where: { 
+      where: {
         id: taskId,
         deletedAt: null, // Only get non-deleted tasks
       },
@@ -176,7 +267,7 @@ export const getTaskById = async (taskId: string) => {
             lastName: true,
             email: true,
             avatar: true,
-          }
+          },
         },
         column: {
           select: {
@@ -184,7 +275,7 @@ export const getTaskById = async (taskId: string) => {
             name: true,
             color: true,
             order: true,
-          }
+          },
         },
         board: {
           select: {
@@ -192,14 +283,14 @@ export const getTaskById = async (taskId: string) => {
             title: true,
             color: true,
             organizationId: true,
-          }
+          },
         },
         team: {
           select: {
             id: true,
             name: true,
-          }
-        }
+          },
+        },
       },
     });
 
@@ -222,7 +313,7 @@ export const getTaskById = async (taskId: string) => {
 export const getTasksForBoard = async (boardId: string) => {
   try {
     const tasks = await prisma.task.findMany({
-      where: { 
+      where: {
         boardId,
         deletedAt: null,
       },
@@ -234,14 +325,10 @@ export const getTasksForBoard = async (boardId: string) => {
             lastName: true,
             email: true,
             avatar: true,
-          }
+          },
         },
       },
-      orderBy: [
-        { columnId: 'asc' },
-        { order: 'asc' },
-        { createdAt: 'asc' }
-      ],
+      orderBy: [{ columnId: "asc" }, { order: "asc" }, { createdAt: "asc" }],
     });
 
     return {
@@ -258,7 +345,7 @@ export const getTasksForBoard = async (boardId: string) => {
 export const getTasksForColumn = async (columnId: string) => {
   try {
     const tasks = await prisma.task.findMany({
-      where: { 
+      where: {
         columnId,
         deletedAt: null,
       },
@@ -270,13 +357,10 @@ export const getTasksForColumn = async (columnId: string) => {
             lastName: true,
             email: true,
             avatar: true,
-          }
+          },
         },
       },
-      orderBy: [
-        { order: 'asc' },
-        { createdAt: 'asc' }
-      ],
+      orderBy: [{ order: "asc" }, { createdAt: "asc" }],
     });
 
     return {
@@ -294,7 +378,7 @@ export const updateTask = async (taskId: string, data: UpdateTaskInput) => {
   try {
     // Check if task exists
     const existingTask = await prisma.task.findUnique({
-      where: { 
+      where: {
         id: taskId,
         deletedAt: null,
       },
@@ -307,7 +391,7 @@ export const updateTask = async (taskId: string, data: UpdateTaskInput) => {
     // If columnId is being updated, verify it exists and belongs to same board
     if (data.columnId && data.columnId !== existingTask.columnId) {
       const column = await prisma.column.findFirst({
-        where: { 
+        where: {
           id: data.columnId,
           boardId: existingTask.boardId,
         },
@@ -348,9 +432,11 @@ export const updateTask = async (taskId: string, data: UpdateTaskInput) => {
         isRecurring: updateData.isRecurring,
         columnId: updateData.columnId,
         teamId: updateData.teamId,
-        assignees: updateData.assigneeIds ? {
-          set: updateData.assigneeIds.map(id => ({ id }))
-        } : undefined,
+        assignees: updateData.assigneeIds
+          ? {
+              set: updateData.assigneeIds.map((id) => ({ id })),
+            }
+          : undefined,
       },
       include: {
         assignees: {
@@ -360,7 +446,7 @@ export const updateTask = async (taskId: string, data: UpdateTaskInput) => {
             lastName: true,
             email: true,
             avatar: true,
-          }
+          },
         },
         column: {
           select: {
@@ -368,7 +454,7 @@ export const updateTask = async (taskId: string, data: UpdateTaskInput) => {
             name: true,
             color: true,
             order: true,
-          }
+          },
         },
         board: {
           select: {
@@ -376,14 +462,14 @@ export const updateTask = async (taskId: string, data: UpdateTaskInput) => {
             title: true,
             color: true,
             organizationId: true,
-          }
+          },
         },
         team: {
           select: {
             id: true,
             name: true,
-          }
-        }
+          },
+        },
       },
     });
 
@@ -403,7 +489,7 @@ export const updateTask = async (taskId: string, data: UpdateTaskInput) => {
 export const deleteTask = async (taskId: string) => {
   try {
     const task = await prisma.task.findUnique({
-      where: { 
+      where: {
         id: taskId,
         deletedAt: null,
       },
@@ -438,7 +524,7 @@ export const assignUsersToTask = async (taskId: string, userIds: string[]) => {
   try {
     // Check if task exists
     const task = await prisma.task.findUnique({
-      where: { 
+      where: {
         id: taskId,
         deletedAt: null,
       },
@@ -462,8 +548,8 @@ export const assignUsersToTask = async (taskId: string, userIds: string[]) => {
       where: { id: taskId },
       data: {
         assignees: {
-          set: userIds.map(id => ({ id }))
-        }
+          set: userIds.map((id) => ({ id })),
+        },
       },
       include: {
         assignees: {
@@ -473,7 +559,7 @@ export const assignUsersToTask = async (taskId: string, userIds: string[]) => {
             lastName: true,
             email: true,
             avatar: true,
-          }
+          },
         },
         column: {
           select: {
@@ -481,7 +567,7 @@ export const assignUsersToTask = async (taskId: string, userIds: string[]) => {
             name: true,
             color: true,
             order: true,
-          }
+          },
         },
         board: {
           select: {
@@ -489,14 +575,14 @@ export const assignUsersToTask = async (taskId: string, userIds: string[]) => {
             title: true,
             color: true,
             organizationId: true,
-          }
+          },
         },
         team: {
           select: {
             id: true,
             name: true,
-          }
-        }
+          },
+        },
       },
     });
 
@@ -519,7 +605,7 @@ export const moveTask = async (data: MoveTaskInput & { taskId: string }) => {
 
     // Check if task exists and is in the source column
     const task = await prisma.task.findFirst({
-      where: { 
+      where: {
         id: taskId,
         columnId: sourceColumnId,
         deletedAt: null,
@@ -532,7 +618,7 @@ export const moveTask = async (data: MoveTaskInput & { taskId: string }) => {
 
     // Verify target column exists and belongs to same board
     const targetColumn = await prisma.column.findFirst({
-      where: { 
+      where: {
         id: targetColumnId,
         boardId: task.boardId,
       },
@@ -557,7 +643,7 @@ export const moveTask = async (data: MoveTaskInput & { taskId: string }) => {
             lastName: true,
             email: true,
             avatar: true,
-          }
+          },
         },
         column: {
           select: {
@@ -565,7 +651,7 @@ export const moveTask = async (data: MoveTaskInput & { taskId: string }) => {
             name: true,
             color: true,
             order: true,
-          }
+          },
         },
         board: {
           select: {
@@ -573,14 +659,14 @@ export const moveTask = async (data: MoveTaskInput & { taskId: string }) => {
             title: true,
             color: true,
             organizationId: true,
-          }
+          },
         },
         team: {
           select: {
             id: true,
             name: true,
-          }
-        }
+          },
+        },
       },
     });
 

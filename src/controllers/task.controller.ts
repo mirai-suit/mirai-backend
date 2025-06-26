@@ -30,7 +30,10 @@ export const createTask = async (
     // Validate request body
     const validatedData = createTaskSchema.parse(req.body);
 
-    const result = await taskService.createTask(validatedData);
+    // Get the current user ID from the request (assuming it's set by auth middleware)
+    const assignerId = (req as any).user?.id;
+
+    const result = await taskService.createTask(validatedData, assignerId);
     res.status(201).json(result);
   } catch (error) {
     logger.error(`Create Task Controller Error: ${error}`);
