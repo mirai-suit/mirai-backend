@@ -82,18 +82,37 @@ export async function sendPasswordResetEmail(email: string, otp: string) {
 export async function generateAndSaveRefreshToken(
   userId: string
 ): Promise<string> {
+  // First, validate that the user exists
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+  });
+
+  if (!user) {
+    throw new CustomError(404, "User not found");
+  }
+
+  // Generate a new UUID token
   const token = uuidv4();
   const expiresAt = new Date();
   expiresAt.setDate(expiresAt.getDate() + 7); // 7 days from now
-  // Check if user exists
-  const existingRefreshToken = await prisma.refreshToken.findUnique({ where: { userId: userId } });
-  if (existingRefreshToken) {    
-    throw new CustomError(404, "User Already logged in.");    
+
+  // Check if user has existing refresh tokens
+  const existingRefreshTokens = await prisma.refreshToken.findMany({
+    where: { userId: userId },
+  });
+
+  // If user has existing refresh tokens, revoke all of them
+  // This ensures only one active session per user (you can modify this logic
+  // if you want to allow multiple active sessions)
+  if (existingRefreshTokens.length > 0) {
+    await revokeAllRefreshTokens(userId);
   }
+
+  // Create new refresh token
   await prisma.refreshToken.create({
     data: {
       token,
-      user:{
+      user: {
         connect: { id: userId },
       },
       expiresAt,
@@ -108,7 +127,7 @@ export async function verifyRefreshToken(
 ): Promise<{ userId: string }> {
   // Check if token exists in database
 
-  console.log('TOKEN FOR VERIFICATION IN HELPER IS ', token);
+  console.log("TOKEN FOR VERIFICATION IN HELPER IS ", token);
   const refreshToken = await prisma.refreshToken.findUnique({
     where: { token: token },
     include: { user: true },
