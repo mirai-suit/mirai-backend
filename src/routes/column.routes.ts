@@ -6,6 +6,7 @@ import {
   createColumnSchema,
   updateColumnRequestSchema,
   reorderColumnTasksRequestSchema,
+  reorderColumnsSchema,
   columnIdParamSchema,
   boardIdParamSchema,
 } from "../schemas/column.schema";
@@ -53,6 +54,14 @@ router.post(
     body: reorderColumnTasksRequestSchema,
   }),
   columnController.reorderColumnTasks
+);
+
+// Reorder columns in a board
+router.put(
+  "/reorder",
+  verifyToken,
+  validate({ body: reorderColumnsSchema }),
+  columnController.reorderColumns
 );
 
 export default router;

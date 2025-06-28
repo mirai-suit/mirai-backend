@@ -12,42 +12,34 @@ interface ValidationSchemas {
 export const validate = (schemas: ValidationSchemas) => {
   return (req: Request, _res: Response, next: NextFunction) => {
     try {
-      // Validate request body
       if (schemas.body) {
         req.body = schemas.body.parse(req.body);
       }
 
-      // Validate request params
       if (schemas.params) {
         req.params = schemas.params.parse(req.params);
       }
 
-      // Validate request query
       if (schemas.query) {
-        req.query = schemas.query.parse(req.query);
+        // Fix here: don't assign directly if req.query is read-only
+        const parsedQuery = schemas.query.parse(req.query);
+        Object.assign(req.query, parsedQuery); // ✅ This updates the object safely
       }
 
       next();
     } catch (error) {
       if (error instanceof ZodError) {
-        // Format Zod errors into a readable message
         const errorMessages = error.errors
           .map((err) => `${err.path.join(".")}: ${err.message}`)
           .join(", ");
-
         logger.error(`Validation Error: ${errorMessages}`);
-
-        // Use CustomError to maintain consistent error structure
-        const customError = new CustomError(
-          400,
-          `Validation failed: ${errorMessages}`
+        return next(
+          new CustomError(400, `Validation failed: ${errorMessages}`)
         );
-
-        next(customError);
-      } else {
-        logger.error(`Unexpected Validation Error: ${error}`);
-        next(new CustomError(500, "Internal validation error"));
       }
+
+      logger.error(`Unexpected Validation Error: ${error}`);
+      return next(new CustomError(500, "Internal validation error"));
     }
   };
 };

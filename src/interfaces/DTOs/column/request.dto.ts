@@ -23,3 +23,8 @@ export interface GetColumnsForBoardDto {
 export interface DeleteColumnDto {
   columnId: string;
 }
+
+export interface ReorderColumnsDto {
+  boardId: string;
+  columnIds: string[];
+}

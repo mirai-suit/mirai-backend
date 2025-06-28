@@ -119,3 +119,38 @@ export const reorderColumnTasks = async (
     throw new CustomError(500, "Failed to reorder column tasks");
   }
 };
+
+// Reorder columns in a board
+export const reorderColumns = async (boardId: string, columnIds: string[]) => {
+  try {
+    // Fetch all columns in the board
+    const columns = await prisma.column.findMany({
+      where: { boardId },
+      select: { id: true },
+    });
+
+    // Validate all provided IDs belong to this board
+    const columnIdsInBoard = columns.map((c) => c.id);
+    const allValid = columnIds.every((id) => columnIdsInBoard.includes(id));
+    if (!allValid) {
+      throw new CustomError(
+        400,
+        "One or more column IDs do not belong to this board"
+      );
+    }
+
+    // Update the order field for each column
+    const updates = columnIds.map((columnId, idx) =>
+      prisma.column.update({
+        where: { id: columnId },
+        data: { order: idx },
+      })
+    );
+    await prisma.$transaction(updates);
+
+    return { success: true, message: "Columns reordered successfully" };
+  } catch (error) {
+    logger.error(`Error Reordering Columns: ${error}`);
+    throw new CustomError(500, "Failed to reorder columns");
+  }
+};

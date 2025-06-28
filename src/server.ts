@@ -82,7 +82,7 @@ app.get('/', (_req: Request, res: Response) => {
   res.status(200).json({ 
     status: 'OK', 
     timestamp: new Date(), 
-    message: 'Mfs server' 
+    message: 'Mirai server' 
   });
 });
 

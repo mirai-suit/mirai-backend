@@ -5,6 +5,7 @@ import {
   CreateColumnInput,
   UpdateColumnRequestInput,
   ReorderColumnTasksRequestInput,
+  ReorderColumnsInput,
   ColumnIdParam,
   BoardIdParam,
 } from "src/schemas/column.schema";
@@ -14,6 +15,7 @@ import {
   ReorderColumnTasksDto,
   GetColumnsForBoardDto,
   DeleteColumnDto,
+  ReorderColumnsDto,
 } from "src/interfaces/DTOs/column/request.dto";
 
 // Create a new column
@@ -104,6 +106,25 @@ export const reorderColumnTasks = async (
     res.status(200).json(result);
   } catch (error) {
     logger.error(`Reorder Column Tasks Controller Error: ${error}`);
+    next(error);
+  }
+};
+
+// Reorder columns
+export const reorderColumns = async (
+  req: Request<{}, any, ReorderColumnsInput>,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const reorderDto: ReorderColumnsDto = req.body;
+    const result = await columnService.reorderColumns(
+      reorderDto.boardId,
+      reorderDto.columnIds
+    );
+    res.status(200).json(result);
+  } catch (error) {
+    logger.error(`Reorder Columns Controller Error: ${error}`);
     next(error);
   }
 };
