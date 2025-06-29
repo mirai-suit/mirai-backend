@@ -89,12 +89,32 @@ export const getMessagesForBoard = async (
       return;
     }
 
+    const skipNum = skip ? parseInt(skip as string, 10) : 0;
+    const takeNum = take ? parseInt(take as string, 10) : 20;
+
     const messages = await messagingService.getMessagesForBoard(boardId, {
-      skip: skip ? parseInt(skip as string, 10) : 0,
-      take: take ? parseInt(take as string, 10) : 20,
+      skip: skipNum,
+      take: takeNum,
       cursor: cursor as string | undefined,
     });
-    res.status(200).json({ success: true, messages });
+
+    // Get total count for pagination
+    const totalMessages = await messagingService.getTotalMessagesCount(boardId);
+
+    // Calculate pagination metadata
+    const page = Math.floor(skipNum / takeNum) + 1;
+    const totalPages = Math.ceil(totalMessages / takeNum);
+
+    res.status(200).json({
+      success: true,
+      messages,
+      pagination: {
+        page,
+        limit: takeNum,
+        total: totalMessages,
+        totalPages,
+      },
+    });
   } catch (error) {
     logger.error(`Get Messages For Board Controller Error: ${error}`);
     next(error);

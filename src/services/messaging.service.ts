@@ -188,6 +188,11 @@ export const sendMessage = async ({
             },
           },
         },
+        thread: {
+          select: {
+            boardId: true,
+          },
+        },
       },
     });
 
@@ -217,10 +222,41 @@ export const sendMessage = async ({
       createdAt: message.createdAt.toISOString(),
     });
 
-    return message;
+    // Transform the message to use boardId as threadId for frontend compatibility
+    const transformedMessage = {
+      ...message,
+      threadId: message.thread.boardId, // Replace internal threadId with boardId
+    };
+
+    return transformedMessage;
   } catch (error) {
     logger.error(`Error Sending Message: ${error}`);
     throw new CustomError(500, "Failed to send message");
+  }
+};
+
+// Get total message count for a board (for pagination)
+export const getTotalMessagesCount = async (
+  boardId: string
+): Promise<number> => {
+  try {
+    const thread = await prisma.messageThread.findUnique({
+      where: { boardId },
+    });
+
+    if (!thread) return 0;
+
+    const count = await prisma.message.count({
+      where: {
+        threadId: thread.id,
+        isDeleted: false,
+      },
+    });
+
+    return count;
+  } catch (error) {
+    logger.error(`Error Getting Total Messages Count: ${error}`);
+    throw new CustomError(500, "Failed to get total messages count");
   }
 };
 
@@ -251,8 +287,13 @@ export const getMessagesForBoard = async (
             avatar: true,
           },
         },
+        thread: {
+          select: {
+            boardId: true,
+          },
+        },
       },
-      orderBy: { createdAt: "asc" },
+      orderBy: { createdAt: "desc" }, // NEWEST FIRST
       skip,
       take,
       ...(cursor
@@ -263,7 +304,14 @@ export const getMessagesForBoard = async (
         : {}),
     });
 
-    return messages;
+    // Transform messages to use boardId as threadId for frontend compatibility
+    const transformedMessages = messages.map((message) => ({
+      ...message,
+      threadId: message.thread.boardId, // Replace internal threadId with boardId
+    }));
+
+    // Reverse so UI displays oldest-to-newest
+    return transformedMessages.reverse();
   } catch (error) {
     logger.error(`Error Fetching Paginated Messages: ${error}`);
     throw new CustomError(500, "Failed to fetch messages");
@@ -341,6 +389,11 @@ export const searchMessages = async (
             },
           },
         },
+        thread: {
+          select: {
+            boardId: true,
+          },
+        },
       },
       orderBy: { createdAt: "desc" },
       skip,
@@ -349,6 +402,7 @@ export const searchMessages = async (
 
     return messages.map((msg) => ({
       ...msg,
+      threadId: msg.thread.boardId, // Replace internal threadId with boardId
       createdAt: msg.createdAt.toISOString(),
       editedAt: msg.editedAt?.toISOString(),
     }));
