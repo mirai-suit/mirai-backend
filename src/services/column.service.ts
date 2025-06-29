@@ -76,8 +76,17 @@ export const deleteColumn = async (columnId: string) => {
       where: { id: columnId },
     });
     return { success: true, column: deleted };
-  } catch (error) {
+  } catch (error: any) {
     logger.error(`Error Deleting Column: ${error}`);
+
+    // Check for foreign key constraint error (Prisma uses code 'P2003')
+    if (error.code === "P2003") {
+      throw new CustomError(
+        400,
+        "Cannot delete column because it contains tasks. Please remove all tasks from this column before deleting."
+      );
+    }
+
     throw new CustomError(500, "Failed to delete column");
   }
 };

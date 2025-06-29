@@ -52,7 +52,7 @@ export const createBoard = async (data: {
         isReadOnly: data.isReadOnly ?? false,
         isShared: data.isShared ?? false,
         isDefault: data.isDefault ?? false,
-        messageThread:{
+        messageThread: {
           create: {}, // Create an empty message thread for the board
         },
         columns: data.defaultColumns
@@ -112,6 +112,8 @@ export const createBoard = async (data: {
           ? {
               ...board.messageThread,
               boardId: board.messageThread.boardId ?? board.id,
+              lastMessageAt:
+                board.messageThread.lastMessageAt?.toISOString() || undefined,
               messages: board.messageThread.messages.map((msg: any) => ({
                 ...msg,
                 createdAt: msg.createdAt.toISOString(),
@@ -187,6 +189,8 @@ export const getBoardById = async (
           ? {
               ...board.messageThread,
               boardId: board.messageThread.boardId ?? board.id,
+              lastMessageAt:
+                board.messageThread.lastMessageAt?.toISOString() || undefined,
               messages: board.messageThread.messages.map((msg: any) => ({
                 ...msg,
                 createdAt: msg.createdAt.toISOString(),

@@ -190,7 +190,6 @@ export const getNotesByBoardId = async (
       take: limit,
     });
 
-    logger.info(`Retrieved ${notes.length} notes for board: ${boardId}`);
 
     return {
       success: true,
@@ -275,7 +274,6 @@ export const getNoteById = async (
       throw new CustomError(404, "Note not found or access denied");
     }
 
-    logger.info(`Note retrieved successfully: ${noteId}`);
 
     return {
       success: true,

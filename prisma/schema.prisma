@@ -262,21 +262,43 @@ model Invitation {
 
 model MessageThread {
   id        String    @id @default(uuid())
-  board     Board?     @relation(fields: [boardId], references: [id])
-  boardId   String?    @unique
+  board     Board?    @relation(fields: [boardId], references: [id])
+  boardId   String?   @unique
   messages  Message[]
+  lastMessageAt DateTime? // Track when last message was sent
+  unreadCount Int      @default(0) // Count of unread messages
+  isArchived Boolean  @default(false)
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
+
+  @@map("message_threads")
 }
 
 model Message {
-  id        String    @id @default(uuid())
+  id        String        @id @default(uuid())
   thread    MessageThread @relation(fields: [threadId], references: [id])
   threadId  String
-  sender    User      @relation(fields: [senderId], references: [id])
+  sender    User          @relation(fields: [senderId], references: [id])
   senderId  String
   text      String
-  createdAt DateTime  @default(now())
+  messageType String      @default("text") // text, file, image, system
+  mentionedUsers String[]  // Array of user IDs mentioned in this message
+  replyToId String?       // For threading/replies
+  replyTo   Message?      @relation("MessageReplies", fields: [replyToId], references: [id])
+  replies   Message[]     @relation("MessageReplies")
+  isEdited  Boolean       @default(false)
+  editedAt  DateTime?
+  isDeleted Boolean       @default(false)
+  deletedAt DateTime?
+  reactions Json?         // For emoji reactions: {emoji: [userIds]}
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  @@index([threadId])
+  @@index([senderId])
+  @@index([createdAt])
+  @@index([mentionedUsers])
+  @@map("messages")
 }
 
 model Note {
