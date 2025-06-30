@@ -54,6 +54,22 @@ export const addMemberToOrganization = async ({
       throw new CustomError(404, "Cannot Add Member to Organization");
     }
 
+    // Grant access to all boards in the organization for this user
+    const boards = await prisma.board.findMany({
+      where: { organizationId: organization, deletedAt: null },
+      select: { id: true },
+    });
+    if (boards.length > 0) {
+      await prisma.boardAccess.createMany({
+        data: boards.map((b) => ({
+          boardId: b.id,
+          userId,
+          accessRole: "MEMBER",
+        })),
+        skipDuplicates: true,
+      });
+    }
+
     return { success: true, user: added };
   } catch (error) {
     logger.error(`Error Adding user: ${error}`);

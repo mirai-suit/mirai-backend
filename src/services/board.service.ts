@@ -88,6 +88,22 @@ export const createBoard = async (data: {
 
     if (!board) throw new CustomError(400, "Board creation failed");
 
+    // Grant access to all current org members for this board
+    const orgUsers = await prisma.organizationUser.findMany({
+      where: { organizationId: data.organizationId },
+      select: { userId: true },
+    });
+    if (orgUsers.length > 0) {
+      await prisma.boardAccess.createMany({
+        data: orgUsers.map((u) => ({
+          boardId: board.id,
+          userId: u.userId,
+          accessRole: "MEMBER",
+        })),
+        skipDuplicates: true,
+      });
+    }
+
     return {
       success: true,
       message: "Board created successfully",
@@ -253,15 +269,19 @@ export const getBoardById = async (
   }
 };
 
-// Get all boards for an organization
+// Get all boards for an organization, filtered by user access
 export const getBoardsForOrganization = async (
-  organizationId: string
+  organizationId: string,
+  userId: string
 ): Promise<GetBoardsResponseDto> => {
   try {
     const boards = await prisma.board.findMany({
       where: {
         organizationId,
-        deletedAt: null, // Exclude soft-deleted boards
+        deletedAt: null,
+        accessList: {
+          some: { userId },
+        },
       },
       include: {
         columns: {

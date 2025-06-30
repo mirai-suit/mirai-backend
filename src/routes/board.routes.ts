@@ -11,6 +11,8 @@ import {
   boardUserParamsSchema,
   changeBoardRoleSchema,
 } from "../schemas/board.schema";
+import { requireOrganizationAdmin } from "../middlewares/organization.middleware";
+import { requireBoardAccess } from "../middlewares/boardAccess.middleware";
 
 const router = Router();
 
@@ -26,6 +28,7 @@ router.post(
 router.get(
   "/:boardId",
   verifyToken,
+  requireBoardAccess,
   validate({ params: boardParamsSchema }),
   boardController.getBoardById
 );
@@ -42,6 +45,7 @@ router.get(
 router.put(
   "/:boardId",
   verifyToken,
+  requireBoardAccess,
   validate({
     params: boardParamsSchema,
     body: updateBoardSchema,
@@ -53,6 +57,7 @@ router.put(
 router.delete(
   "/:boardId",
   verifyToken,
+  requireBoardAccess,
   validate({ params: boardParamsSchema }),
   boardController.deleteBoard
 );
@@ -61,6 +66,7 @@ router.delete(
 router.post(
   "/:boardId/access",
   verifyToken,
+  requireOrganizationAdmin,
   validate({
     params: boardParamsSchema,
     body: boardAccessSchema,
@@ -72,6 +78,7 @@ router.post(
 router.delete(
   "/:boardId/access/:userId",
   verifyToken,
+  requireOrganizationAdmin,
   validate({ params: boardUserParamsSchema }),
   boardController.removeUserFromBoard
 );
@@ -80,11 +87,21 @@ router.delete(
 router.put(
   "/:boardId/access/:userId",
   verifyToken,
+  requireOrganizationAdmin,
   validate({
     params: boardUserParamsSchema,
     body: changeBoardRoleSchema,
   }),
   boardController.changeUserBoardRole
+);
+
+// List all users with access to a board
+router.get(
+  "/:boardId/access",
+  verifyToken,
+  requireOrganizationAdmin,
+  validate({ params: boardParamsSchema }),
+  boardController.getBoardAccessList
 );
 
 export default router;

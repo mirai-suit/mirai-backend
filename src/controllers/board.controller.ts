@@ -52,7 +52,11 @@ export const getBoardsForOrganization = async (
   try {
     // organizationId validation handled by middleware
     const { organizationId } = req.params;
-    const result = await boardService.getBoardsForOrganization(organizationId);
+    const userId = req.user?.id;
+    const result = await boardService.getBoardsForOrganization(
+      organizationId,
+      userId
+    );
     res.status(200).json(result);
   } catch (error) {
     logger.error(`Get Boards For Org Controller Error: ${error}`);
@@ -152,6 +156,24 @@ export const changeUserBoardRole = async (
     res.status(200).json(result);
   } catch (error) {
     logger.error(`Change User Board Role Controller Error: ${error}`);
+    next(error);
+  }
+};
+
+// List all users with access to a board
+export const getBoardAccessList = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { boardId } = req.params;
+    const accessList = await (
+      await import("../services/boardAccess.service")
+    ).getBoardAccessList(boardId);
+    res.status(200).json({ success: true, accessList });
+  } catch (error) {
+    logger.error(`Get Board Access List Controller Error: ${error}`);
     next(error);
   }
 };
