@@ -24,6 +24,7 @@ export interface TaskDetailResponseDto extends TaskResponseDto {
   column: TaskColumnDto;
   board?: TaskBoardDto;
   team?: TaskTeamDto;
+  attachments?: TaskAttachmentDto[];
 }
 
 // Nested DTOs for task responses
@@ -33,6 +34,23 @@ export interface TaskAssigneeDto {
   lastName: string;
   email: string;
   avatar?: string;
+}
+
+export interface TaskAttachmentDto {
+  id: string;
+  filename: string;
+  fileSize: number;
+  mimeType: string;
+  fileType: string;
+  s3Key: string;
+  downloadUrl?: string;
+  uploadedBy: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    avatar?: string;
+  };
+  createdAt: string;
 }
 
 export interface TaskColumnDto {

@@ -59,6 +59,7 @@ model User {
   boardAccess          BoardAccess[]
   createdOrganizations Organization[]     @relation("OrganizationCreator")
   sentInvitations      Invitation[]       @relation("InvitationSender")
+  uploadedAttachments  TaskAttachment[]   @relation("UserTaskAttachments")
   createdAt            DateTime           @default(now())
   updatedAt            DateTime           @updatedAt
   messages             Message[]
@@ -202,6 +203,14 @@ enum TaskPriority {
   HIGHEST
 }
 
+enum AttachmentType {
+  VOICE_NOTE
+  IMAGE
+  DOCUMENT
+  VIDEO
+  OTHER
+}
+
 model Task {
   id             String        @id @default(uuid())
   title          String
@@ -220,6 +229,7 @@ model Task {
   boardId        String
   team           Team?         @relation(fields: [teamId], references: [id])
   teamId         String?
+  attachments    TaskAttachment[]
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
   deletedAt      DateTime?
@@ -227,6 +237,28 @@ model Task {
   refreshTokenId String?
 
   @@map("tasks")
+}
+
+model TaskAttachment {
+  id          String          @id @default(uuid())
+  task        Task            @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  taskId      String
+  uploader    User            @relation("UserTaskAttachments", fields: [uploaderId], references: [id])
+  uploaderId  String
+  filename    String          // Original filename
+  s3Key       String          // S3 object key
+  s3Url       String          // S3 URL
+  fileSize    Int             // Size in bytes
+  mimeType    String          // MIME type
+  fileType    AttachmentType  // Enum for categorization
+  metadata    Json?           // Additional metadata (duration for audio, dimensions for images, etc.)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@index([taskId])
+  @@index([uploaderId])
+  @@index([fileType])
+  @@map("task_attachments")
 }
 
 model BoardAccess {

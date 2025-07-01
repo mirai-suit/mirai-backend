@@ -71,6 +71,13 @@ export const moveTaskSchema = z.object({
   newOrder: z.number().int().min(0, "Order must be non-negative"),
 });
 
+// Reorder tasks in a column schema
+export const reorderTasksSchema = z.object({
+  taskIds: z
+    .array(z.string().uuid("Invalid task ID"))
+    .min(1, "At least one task ID required"),
+});
+
 // Assign users schema
 export const assignUsersSchema = z.object({
   userIds: z

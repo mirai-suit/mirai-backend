@@ -1,3 +1,57 @@
+// Reorder tasks in a column
+export const reorderTasksInColumn = async (
+  columnId: string,
+  taskIds: string[]
+) => {
+  try {
+    // Fetch all tasks in the column
+    const tasks = await prisma.task.findMany({
+      where: { columnId, deletedAt: null },
+      select: { id: true },
+    });
+    // Validate all provided IDs exist in the column
+    const validIds = new Set(tasks.map((t) => t.id));
+    if (taskIds.some((id) => !validIds.has(id))) {
+      throw new CustomError(
+        400,
+        "One or more task IDs are invalid for this column"
+      );
+    }
+    // Update order for each task
+    const updates = taskIds.map((id, idx) =>
+      prisma.task.update({
+        where: { id },
+        data: { order: idx },
+      })
+    );
+    await Promise.all(updates);
+    // Return updated tasks (ordered)
+    const updatedTasks = await prisma.task.findMany({
+      where: { columnId, deletedAt: null },
+      include: {
+        assignees: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            avatar: true,
+          },
+        },
+      },
+      orderBy: [{ order: "asc" }, { createdAt: "asc" }],
+    });
+    return {
+      success: true,
+      message: "Tasks reordered successfully",
+      tasks: updatedTasks.map(transformTaskToDto),
+    };
+  } catch (error) {
+    logger.error(`Reorder Tasks Service Error: ${error}`);
+    if (error instanceof CustomError) throw error;
+    throw new CustomError(500, "Failed to reorder tasks");
+  }
+};
 import prisma from "../config/prisma/prisma.client";
 import CustomError from "../shared/exceptions/CustomError";
 import logger from "../utils/logger";
@@ -48,8 +102,63 @@ const transformTaskToDto = (task: any): TaskResponseDto => {
 };
 
 // Helper function to transform Prisma task to detailed DTO (with relations)
-const transformTaskToDetailDto = (task: any): TaskDetailResponseDto => {
+const transformTaskToDetailDto = async (
+  task: any
+): Promise<TaskDetailResponseDto> => {
   const baseTask = transformTaskToDto(task);
+
+  // Generate signed URLs for attachments
+  const attachmentsWithSignedUrls = task.attachments
+    ? await Promise.all(
+        task.attachments.map(async (attachment: any) => {
+          try {
+            // Generate signed URL for secure access
+            const signedUrl = await require("./s3Upload.service").getSignedUrl(
+              attachment.s3Key,
+              3600 // 1 hour expiry
+            );
+
+            return {
+              id: attachment.id,
+              filename: attachment.filename,
+              fileSize: attachment.fileSize,
+              mimeType: attachment.mimeType,
+              fileType: attachment.fileType,
+              s3Key: attachment.s3Key,
+              downloadUrl: signedUrl,
+              uploadedBy: {
+                id: attachment.uploader.id,
+                firstName: attachment.uploader.firstName,
+                lastName: attachment.uploader.lastName,
+                avatar: attachment.uploader.avatar,
+              },
+              createdAt: attachment.createdAt.toISOString(),
+            };
+          } catch (error) {
+            logger.error(
+              `Failed to generate signed URL for attachment ${attachment.id}: ${error}`
+            );
+            // Return attachment without downloadUrl if signed URL generation fails
+            return {
+              id: attachment.id,
+              filename: attachment.filename,
+              fileSize: attachment.fileSize,
+              mimeType: attachment.mimeType,
+              fileType: attachment.fileType,
+              s3Key: attachment.s3Key,
+              downloadUrl: attachment.s3Url, // Fallback to stored URL
+              uploadedBy: {
+                id: attachment.uploader.id,
+                firstName: attachment.uploader.firstName,
+                lastName: attachment.uploader.lastName,
+                avatar: attachment.uploader.avatar,
+              },
+              createdAt: attachment.createdAt.toISOString(),
+            };
+          }
+        })
+      )
+    : [];
 
   return {
     ...baseTask,
@@ -75,6 +184,7 @@ const transformTaskToDetailDto = (task: any): TaskDetailResponseDto => {
           name: task.team.name,
         }
       : undefined,
+    attachments: attachmentsWithSignedUrls,
   } as TaskDetailResponseDto;
 };
 
@@ -242,7 +352,7 @@ export const createTask = async (
     return {
       success: true,
       message: "Task created successfully",
-      task: transformTaskToDetailDto(task),
+      task: await transformTaskToDetailDto(task),
     };
   } catch (error) {
     logger.error(`Create Task Service Error: ${error}`);
@@ -291,6 +401,22 @@ export const getTaskById = async (taskId: string) => {
             name: true,
           },
         },
+        attachments: {
+          include: {
+            uploader: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                email: true,
+                avatar: true,
+              },
+            },
+          },
+          orderBy: {
+            createdAt: "desc",
+          },
+        },
       },
     });
 
@@ -300,7 +426,7 @@ export const getTaskById = async (taskId: string) => {
 
     return {
       success: true,
-      task: transformTaskToDetailDto(task),
+      task: await transformTaskToDetailDto(task),
     };
   } catch (error) {
     logger.error(`Get Task Service Error: ${error}`);
@@ -344,7 +470,7 @@ export const getTasksForBoard = async (boardId: string) => {
 // Get all tasks for a column
 export const getTasksForColumn = async (columnId: string) => {
   try {
-    const tasks = await prisma.task.findMany({
+    let tasks = await prisma.task.findMany({
       where: {
         columnId,
         deletedAt: null,
@@ -360,8 +486,24 @@ export const getTasksForColumn = async (columnId: string) => {
           },
         },
       },
-      orderBy: [{ order: "asc" }, { createdAt: "asc" }],
     });
+
+    // If all tasks have order 0 (or some have order 0), sort by createdAt for those
+    if (tasks.some((t) => t.order === 0)) {
+      // Sort: tasks with order > 0 first (by order asc), then order 0 by createdAt asc
+      tasks = [
+        ...tasks.filter((t) => t.order > 0).sort((a, b) => a.order - b.order),
+        ...tasks
+          .filter((t) => t.order === 0)
+          .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime()),
+      ];
+    } else {
+      // All have order > 0, sort by order asc, then createdAt asc
+      tasks = tasks.sort(
+        (a, b) =>
+          a.order - b.order || a.createdAt.getTime() - b.createdAt.getTime()
+      );
+    }
 
     return {
       success: true,
@@ -476,7 +618,7 @@ export const updateTask = async (taskId: string, data: UpdateTaskInput) => {
     return {
       success: true,
       message: "Task updated successfully",
-      task: transformTaskToDetailDto(task),
+      task: await transformTaskToDetailDto(task),
     };
   } catch (error) {
     logger.error(`Update Task Service Error: ${error}`);
@@ -589,7 +731,7 @@ export const assignUsersToTask = async (taskId: string, userIds: string[]) => {
     return {
       success: true,
       message: "Users assigned successfully",
-      task: transformTaskToDetailDto(updatedTask),
+      task: await transformTaskToDetailDto(updatedTask),
     };
   } catch (error) {
     logger.error(`Assign Users Service Error: ${error}`);
@@ -673,7 +815,7 @@ export const moveTask = async (data: MoveTaskInput & { taskId: string }) => {
     return {
       success: true,
       message: "Task moved successfully",
-      task: transformTaskToDetailDto(updatedTask),
+      task: await transformTaskToDetailDto(updatedTask),
     };
   } catch (error) {
     logger.error(`Move Task Service Error: ${error}`);
