@@ -46,7 +46,7 @@ export const addMemberToOrganization = async ({
       data: {
         organizationId: organization,
         userId,
-        role,
+        role: role as any, // Type cast to fix Prisma enum issue
       },
     });
 
@@ -64,7 +64,9 @@ export const addMemberToOrganization = async ({
         data: boards.map((b) => ({
           boardId: b.id,
           userId,
-          accessRole: "MEMBER",
+          role: "VIEWER", // Default role for new org members
+          grantedBy: "SYSTEM", // System-granted when added to org
+          grantedVia: "ORGANIZATION",
         })),
         skipDuplicates: true,
       });
@@ -97,6 +99,17 @@ export const removeMemberFromOrganization = async (
       throw new CustomError(404, "Member not found in organization");
     }
 
+    // Remove organization-granted board access
+    await prisma.boardAccess.deleteMany({
+      where: {
+        userId,
+        grantedVia: "ORGANIZATION",
+        board: {
+          organizationId: orgId,
+        },
+      },
+    });
+
     return { success: true, user: removed };
   } catch (error) {
     logger.error(`Error Removing user: ${error}`);
@@ -120,7 +133,7 @@ export const changeUserRoleInOrganization = async (
         },
       },
       data: {
-        role: newRole,
+        role: newRole as any, // Type cast to fix Prisma enum issue
       },
     });
 

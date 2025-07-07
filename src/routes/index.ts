@@ -8,6 +8,7 @@ import boardRoutes from "./board.routes";
 import messagingRoutes from "./messaging.routes";
 import columnRoutes from "./column.routes"; // Assuming you have a column.routes.ts file
 import noteRoutes from "./note.routes";
+import teamRoutes from "./team.routes";
 
 const router = Router();
 
@@ -26,5 +27,6 @@ router.use("/organization", organizationRoutes);
 router.use("/invitation", invitationRoutes); // Public invitation endpoints
 router.use("/chats", messagingRoutes); // Chat/messaging endpoints
 router.use("/", noteRoutes); // Note routes
+router.use("/team", teamRoutes); // Team routes
 
 export default router;

@@ -1,3 +1,4 @@
+import { BoardRole } from "@prisma/client";
 import { MessageThread } from "../messages/response.dto";
 
 // Column Response DTO (minimal for board context - avoid circular references)
@@ -38,7 +39,7 @@ export interface BoardAccessResponseDto {
   id: string;
   userId: string;
   boardId: string;
-  accessRole: string;
+  accessRole: BoardRole;
   user?: {
     id: string;
     firstName: string;

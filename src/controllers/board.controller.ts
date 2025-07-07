@@ -15,10 +15,22 @@ export const createBoard = async (
   req: Request,
   res: Response<CreateBoardResponseDto>,
   next: NextFunction
-) => {
+): Promise<void> => {
   try {
     // All validation is now handled by middleware
-    const result = await boardService.createBoard(req.body);
+    const userId = req.user?.id;
+    if (!userId) {
+      res.status(401).json({
+        success: false,
+        message: "Authentication required",
+      } as any);
+      return;
+    }
+
+    const result = await boardService.createBoard({
+      ...req.body,
+      createdBy: userId,
+    });
     res.status(201).json(result);
   } catch (error) {
     logger.error(`Create Board Controller Error: ${error}`);
@@ -104,15 +116,26 @@ export const addUserToBoard = async (
   req: Request,
   res: Response<BoardAccessResponseActionDto>,
   next: NextFunction
-) => {
+): Promise<void> => {
   try {
     // Validation handled by middleware
     const { boardId } = req.params;
-    const { userId, accessRole } = req.body;
+    const { userId, role } = req.body; // Changed from accessRole to role
+    const grantedBy = req.user?.id;
+
+    if (!grantedBy) {
+      res.status(401).json({
+        success: false,
+        message: "Authentication required",
+      } as any);
+      return;
+    }
+
     const result = await boardService.addUserToBoard(
       boardId,
       userId,
-      accessRole
+      role,
+      grantedBy
     );
     res.status(200).json(result);
   } catch (error) {
@@ -143,15 +166,26 @@ export const changeUserBoardRole = async (
   req: Request,
   res: Response<BoardAccessResponseActionDto>,
   next: NextFunction
-) => {
+): Promise<void> => {
   try {
     // Validation handled by middleware
     const { boardId, userId } = req.params;
-    const { accessRole } = req.body;
+    const { role } = req.body; // Changed from accessRole to role
+    const updatedBy = req.user?.id;
+
+    if (!updatedBy) {
+      res.status(401).json({
+        success: false,
+        message: "Authentication required",
+      } as any);
+      return;
+    }
+
     const result = await boardService.changeUserBoardRole(
       boardId,
       userId,
-      accessRole
+      role,
+      updatedBy
     );
     res.status(200).json(result);
   } catch (error) {

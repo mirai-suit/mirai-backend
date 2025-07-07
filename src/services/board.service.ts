@@ -1,6 +1,8 @@
 import prisma from "src/config/prisma/prisma.client";
+import { BoardRole } from "@prisma/client";
 import CustomError from "src/shared/exceptions/CustomError";
 import logger from "src/utils/logger";
+import * as boardAccessService from "./boardAccess.service";
 import {
   CreateBoardResponseDto,
   GetBoardResponseDto,
@@ -19,7 +21,6 @@ const DEFAULT_COLUMN_COLORS = [
   "#8B5CF6",
 ];
 
-// Create a new board in an organization
 export const createBoard = async (data: {
   title: string;
   organizationId: string;
@@ -35,6 +36,7 @@ export const createBoard = async (data: {
   isShared?: boolean;
   isDefault?: boolean;
   defaultColumns?: string[];
+  createdBy: string; // Add createdBy to track who created the board
 }): Promise<CreateBoardResponseDto> => {
   try {
     const board = await prisma.board.create({
@@ -88,21 +90,12 @@ export const createBoard = async (data: {
 
     if (!board) throw new CustomError(400, "Board creation failed");
 
-    // Grant access to all current org members for this board
-    const orgUsers = await prisma.organizationUser.findMany({
-      where: { organizationId: data.organizationId },
-      select: { userId: true },
-    });
-    if (orgUsers.length > 0) {
-      await prisma.boardAccess.createMany({
-        data: orgUsers.map((u) => ({
-          boardId: board.id,
-          userId: u.userId,
-          accessRole: "MEMBER",
-        })),
-        skipDuplicates: true,
-      });
-    }
+    // Grant access to all organization members (creator gets OWNER, others get VIEWER)
+    await boardAccessService.grantOrganizationAccess(
+      board.id,
+      data.organizationId,
+      data.createdBy
+    );
 
     return {
       success: true,
@@ -249,7 +242,7 @@ export const getBoardById = async (
           id: access.id,
           userId: access.userId,
           boardId: access.boardId,
-          accessRole: access.accessRole,
+          accessRole: access.role,
           user: access.user
             ? {
                 id: access.user.id,
@@ -349,7 +342,7 @@ export const getBoardsForOrganization = async (
           id: access.id,
           userId: access.userId,
           boardId: access.boardId,
-          accessRole: access.accessRole,
+          accessRole: access.role,
         })),
       })),
     };
@@ -534,7 +527,7 @@ export const restoreBoard = async (
           id: access.id,
           userId: access.userId,
           boardId: access.boardId,
-          accessRole: access.accessRole,
+          accessRole: access.role,
         })),
       },
     };
@@ -663,7 +656,7 @@ export const getTrashedBoards = async (
           id: access.id,
           userId: access.userId,
           boardId: access.boardId,
-          accessRole: access.accessRole,
+          accessRole: access.role,
         })),
       })),
     };
@@ -675,22 +668,43 @@ export const getTrashedBoards = async (
 };
 
 // Add user access to a board
+// Add user access to a board
 export const addUserToBoard = async (
   boardId: string,
   userId: string,
-  accessRole: string = "MEMBER"
+  role: BoardRole,
+  grantedBy: string
 ): Promise<BoardAccessResponseActionDto> => {
   try {
-    const access = await prisma.boardAccess.create({
-      data: {
-        boardId,
-        userId,
-        accessRole,
+    await boardAccessService.grantBoardAccess({
+      userId,
+      boardId,
+      role,
+      grantedBy,
+      grantedVia: "DIRECT" as any,
+    });
+
+    // Get the created access with user details
+    const access = await prisma.boardAccess.findUnique({
+      where: {
+        userId_boardId: { userId, boardId },
       },
       include: {
-        user: true,
+        user: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            avatar: true,
+          },
+        },
       },
     });
+
+    if (!access) {
+      throw new CustomError(500, "Failed to retrieve created board access");
+    }
 
     return {
       success: true,
@@ -699,7 +713,7 @@ export const addUserToBoard = async (
         id: access.id,
         userId: access.userId,
         boardId: access.boardId,
-        accessRole: access.accessRole,
+        accessRole: access.role,
         user: {
           id: access.user.id,
           firstName: access.user.firstName,
@@ -722,32 +736,44 @@ export const removeUserFromBoard = async (
   userId: string
 ): Promise<BoardAccessResponseActionDto> => {
   try {
-    const removed = await prisma.boardAccess.delete({
+    // Get the access record before deletion to return in response
+    const accessToRemove = await prisma.boardAccess.findUnique({
       where: {
-        userId_boardId: {
-          userId,
-          boardId,
-        },
+        userId_boardId: { userId, boardId },
       },
       include: {
-        user: true,
+        user: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            avatar: true,
+          },
+        },
       },
     });
+
+    if (!accessToRemove) {
+      throw new CustomError(404, "User does not have access to this board");
+    }
+
+    await boardAccessService.removeBoardAccess(boardId, userId);
 
     return {
       success: true,
       message: "User removed from board successfully",
       removed: {
-        id: removed.id,
-        userId: removed.userId,
-        boardId: removed.boardId,
-        accessRole: removed.accessRole,
+        id: accessToRemove.id,
+        userId: accessToRemove.userId,
+        boardId: accessToRemove.boardId,
+        accessRole: accessToRemove.role,
         user: {
-          id: removed.user.id,
-          firstName: removed.user.firstName,
-          lastName: removed.user.lastName,
-          email: removed.user.email,
-          avatar: removed.user.avatar || undefined,
+          id: accessToRemove.user.id,
+          firstName: accessToRemove.user.firstName,
+          lastName: accessToRemove.user.lastName,
+          email: accessToRemove.user.email,
+          avatar: accessToRemove.user.avatar || undefined,
         },
       },
     };
@@ -762,21 +788,33 @@ export const removeUserFromBoard = async (
 export const changeUserBoardRole = async (
   boardId: string,
   userId: string,
-  accessRole: string
+  role: BoardRole,
+  updatedBy: string
 ): Promise<BoardAccessResponseActionDto> => {
   try {
-    const updated = await prisma.boardAccess.update({
+    await boardAccessService.updateBoardRole(userId, boardId, role, updatedBy);
+
+    // Get the updated access with user details
+    const updated = await prisma.boardAccess.findUnique({
       where: {
-        userId_boardId: {
-          userId,
-          boardId,
+        userId_boardId: { userId, boardId },
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            avatar: true,
+          },
         },
       },
-      data: { accessRole },
-      include: {
-        user: true,
-      },
     });
+
+    if (!updated) {
+      throw new CustomError(500, "Failed to retrieve updated board access");
+    }
 
     return {
       success: true,
@@ -785,7 +823,7 @@ export const changeUserBoardRole = async (
         id: updated.id,
         userId: updated.userId,
         boardId: updated.boardId,
-        accessRole: updated.accessRole,
+        accessRole: updated.role,
         user: {
           id: updated.user.id,
           firstName: updated.user.firstName,
