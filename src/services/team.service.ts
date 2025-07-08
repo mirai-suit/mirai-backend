@@ -1,4 +1,4 @@
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient, BoardRole, GrantSource } from "@prisma/client";
 import {
   CreateTeamRequest,
   UpdateTeamRequest,
@@ -285,6 +285,7 @@ export class TeamService {
     teamId: string,
     data: AssignBoardsToTeamRequest
   ): Promise<void> {
+    // Create team board access
     await this.prisma.teamBoardAccess.createMany({
       data: data.boardIds.map((boardId) => ({
         teamId,
@@ -293,18 +294,63 @@ export class TeamService {
       })),
       skipDuplicates: true,
     });
+
+    // Get all team members
+    const teamMembers = await this.prisma.teamMember.findMany({
+      where: { teamId, leftAt: null },
+      select: { userId: true, role: true },
+    });
+
+    // Grant individual board access to all team members
+    const boardAccessEntries = [];
+    for (const boardId of data.boardIds) {
+      for (const member of teamMembers) {
+        boardAccessEntries.push({
+          userId: member.userId,
+          boardId,
+          role: member.role === "LEADER" ? BoardRole.ADMIN : BoardRole.EDITOR,
+          grantedBy: data.grantedBy,
+          grantedVia: GrantSource.TEAM,
+        });
+      }
+    }
+
+    if (boardAccessEntries.length > 0) {
+      await this.prisma.boardAccess.createMany({
+        data: boardAccessEntries,
+        skipDuplicates: true,
+      });
+    }
   }
 
   /**
    * Remove board access from team
    */
   async removeBoardFromTeam(teamId: string, boardId: string): Promise<void> {
+    // Remove team board access
     await this.prisma.teamBoardAccess.deleteMany({
       where: {
         teamId,
         boardId,
       },
     });
+
+    // Get all team members
+    const teamMembers = await this.prisma.teamMember.findMany({
+      where: { teamId, leftAt: null },
+      select: { userId: true },
+    });
+
+    // Remove individual board access for team members that was granted via team
+    if (teamMembers.length > 0) {
+      await this.prisma.boardAccess.deleteMany({
+        where: {
+          boardId,
+          userId: { in: teamMembers.map((m) => m.userId) },
+          grantedVia: GrantSource.TEAM,
+        },
+      });
+    }
   }
 
   /**
@@ -342,6 +388,35 @@ export class TeamService {
       },
     });
 
+    // Grant board access to new members for all team boards
+    const teamBoards = await this.prisma.teamBoardAccess.findMany({
+      where: { teamId },
+      select: { boardId: true, grantedBy: true },
+    });
+
+    if (teamBoards.length > 0) {
+      const boardAccessEntries = [];
+
+      for (const userId of data.memberIds) {
+        for (const teamBoard of teamBoards) {
+          boardAccessEntries.push({
+            userId,
+            boardId: teamBoard.boardId,
+            role: data.role === "LEADER" ? BoardRole.ADMIN : BoardRole.EDITOR,
+            grantedBy: teamBoard.grantedBy,
+            grantedVia: GrantSource.TEAM,
+          });
+        }
+      }
+
+      if (boardAccessEntries.length > 0) {
+        await this.prisma.boardAccess.createMany({
+          data: boardAccessEntries,
+          skipDuplicates: true,
+        });
+      }
+    }
+
     return createdMembers.map((member) =>
       this.transformTeamMemberResponse(member)
     );
@@ -360,6 +435,22 @@ export class TeamService {
         leftAt: new Date(),
       },
     });
+
+    // Remove board access granted via this team
+    const teamBoards = await this.prisma.teamBoardAccess.findMany({
+      where: { teamId },
+      select: { boardId: true },
+    });
+
+    if (teamBoards.length > 0) {
+      await this.prisma.boardAccess.deleteMany({
+        where: {
+          userId,
+          boardId: { in: teamBoards.map((tb) => tb.boardId) },
+          grantedVia: GrantSource.TEAM,
+        },
+      });
+    }
   }
 
   /**
@@ -370,6 +461,37 @@ export class TeamService {
     userId: string,
     role: "LEADER" | "MEMBER"
   ): Promise<TeamMemberResponse> {
+    // If promoting to leader, first demote current leader to member
+    if (role === "LEADER") {
+      // Find current leader
+      const currentLeader = await this.prisma.teamMember.findFirst({
+        where: {
+          teamId,
+          role: "LEADER",
+          leftAt: null,
+        },
+      });
+
+      if (currentLeader && currentLeader.userId !== userId) {
+        // Demote current leader to member
+        await this.prisma.teamMember.update({
+          where: {
+            teamId_userId: {
+              teamId,
+              userId: currentLeader.userId,
+            },
+          },
+          data: { role: "MEMBER" },
+        });
+      }
+
+      // Also update the team's leaderId field
+      await this.prisma.team.update({
+        where: { id: teamId },
+        data: { leaderId: userId },
+      });
+    }
+
     const updatedMember = await this.prisma.teamMember.update({
       where: {
         teamId_userId: {

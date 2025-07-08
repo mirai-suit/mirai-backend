@@ -1,4 +1,5 @@
 import prisma from "src/config/prisma/prisma.client";
+import { BoardRole, GrantSource } from "@prisma/client";
 import CustomError from "src/shared/exceptions/CustomError";
 import logger from "src/utils/logger";
 import {
@@ -89,23 +90,21 @@ export const createBoard = async (data: {
 
     if (!board) throw new CustomError(400, "Board creation failed");
 
-    // Grant access to all current org members for this board
-    const orgUsers = await prisma.organizationUser.findMany({
-      where: { organizationId: data.organizationId },
-      select: { userId: true },
-    });
-    if (orgUsers.length > 0) {
-      await prisma.boardAccess.createMany({
-        data: orgUsers.map((u) => ({
+    // Grant OWNER access to the board creator
+    if (data.createdBy) {
+      await prisma.boardAccess.create({
+        data: {
+          userId: data.createdBy,
           boardId: board.id,
-          userId: u.userId,
-          role: "VIEWER",
-          grantedBy: data.createdBy || "system",
-          grantedVia: "DIRECT",
-        })),
-        skipDuplicates: true,
+          role: BoardRole.OWNER,
+          grantedBy: data.createdBy, // Self-granted
+          grantedVia: GrantSource.DIRECT,
+        },
       });
     }
+
+    // Note: We no longer grant automatic access to all org members
+    // Access will be granted only when explicitly assigned through teams or direct assignment
 
     return {
       success: true,

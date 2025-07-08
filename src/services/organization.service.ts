@@ -54,23 +54,8 @@ export const addMemberToOrganization = async ({
       throw new CustomError(404, "Cannot Add Member to Organization");
     }
 
-    // Grant access to all boards in the organization for this user
-    const boards = await prisma.board.findMany({
-      where: { organizationId: organization, deletedAt: null },
-      select: { id: true },
-    });
-    if (boards.length > 0) {
-      await prisma.boardAccess.createMany({
-        data: boards.map((b) => ({
-          boardId: b.id,
-          userId,
-          role: "VIEWER",
-          grantedBy: "system",
-          grantedVia: "ORGANIZATION",
-        })),
-        skipDuplicates: true,
-      });
-    }
+    // Note: We no longer grant automatic board access to new organization members
+    // Access will be granted only when explicitly assigned through teams or direct assignment
 
     return { success: true, user: added };
   } catch (error) {

@@ -162,6 +162,15 @@ export const assignBoardsToTeam = async (
         success: false,
         message: "boardIds array is required and must not be empty",
       });
+      return;
+    }
+
+    if (!data.grantedBy) {
+      res.status(400).json({
+        success: false,
+        message: "grantedBy is required",
+      });
+      return;
     }
 
     await teamService.assignBoardsToTeam(teamId, data);
@@ -177,7 +186,7 @@ export const assignBoardsToTeam = async (
 };
 
 /**
- * Remove board from team
+ * Remove board access from team
  */
 export const removeBoardFromTeam = async (
   req: Request,
@@ -191,10 +200,10 @@ export const removeBoardFromTeam = async (
 
     res.status(200).json({
       success: true,
-      message: "Board removed from team successfully",
+      message: "Board access removed from team successfully",
     });
   } catch (error) {
-    console.error("Error removing board from team:", error);
+    console.error("Error removing board access from team:", error);
     next(error);
   }
 };
