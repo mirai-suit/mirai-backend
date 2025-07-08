@@ -23,8 +23,8 @@ enum UserRole {
 }
 
 enum OrganizationRole {
-  ADMIN   // Can manage organization, invite users, create teams
-  MEMBER  // Basic organization access
+  ADMIN
+  MEMBER
 }
 
 enum BoardRole {
@@ -322,8 +322,8 @@ model BoardAccess {
   boardId    String
   role       BoardRole   @default(VIEWER)
   
-  // Access source tracking - required for clean access management
-  grantedBy     String      // User ID who granted access
+  // Access source tracking (nullable for migration)
+  grantedBy     String?
   grantedVia    GrantSource @default(DIRECT)
   sourceTeamId  String?     // If granted via team
   

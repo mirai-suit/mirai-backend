@@ -81,10 +81,10 @@ export const organizationParamsSchema = z.object({
 // Board access schema (boardId from params, access data from body)
 export const boardAccessSchema = z.object({
   userId: uuidSchema,
-  role: z
-    .enum(["VIEWER", "EDITOR", "ADMIN", "OWNER"], {
+  accessRole: z
+    .enum(["MEMBER", "EDITOR", "ADMIN"], {
       errorMap: () => ({
-        message: "Role must be VIEWER, EDITOR, ADMIN, or OWNER",
+        message: "Access role must be MEMBER, EDITOR, or ADMIN",
       }),
     })
     .optional(),
@@ -98,9 +98,9 @@ export const boardUserParamsSchema = z.object({
 
 // Change board role schema (userId comes from params)
 export const changeBoardRoleSchema = z.object({
-  role: z.enum(["VIEWER", "EDITOR", "ADMIN", "OWNER"], {
+  accessRole: z.enum(["MEMBER", "EDITOR", "ADMIN"], {
     errorMap: () => ({
-      message: "Role must be VIEWER, EDITOR, ADMIN, or OWNER",
+      message: "Access role must be MEMBER, EDITOR, or ADMIN",
     }),
   }),
 });

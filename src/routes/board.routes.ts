@@ -12,11 +12,11 @@ import {
   changeBoardRoleSchema,
 } from "../schemas/board.schema";
 import {
-  requireBoardAccess,
-  requireBoardEditor,
-  requireBoardOwner,
-  requireBoardManageAccess,
-} from "../middlewares/boardAccess.middleware";
+  checkOrganizationMembership,
+  requireOrganizationAdmin,
+} from "../middlewares/organization.middleware";
+import { injectOrganizationIdFromBoard } from "../middlewares/boardToOrganization.middleware";
+import { requireBoardAccess } from "../middlewares/boardAccess.middleware";
 
 const router = Router();
 
@@ -49,7 +49,7 @@ router.get(
 router.put(
   "/:boardId",
   verifyToken,
-  requireBoardEditor, // Require editor role to update board
+  requireBoardAccess,
   validate({
     params: boardParamsSchema,
     body: updateBoardSchema,
@@ -61,18 +61,19 @@ router.put(
 router.delete(
   "/:boardId",
   verifyToken,
-  requireBoardOwner, // Only owners can delete boards
+  requireBoardAccess,
   validate({ params: boardParamsSchema }),
   boardController.deleteBoard
 );
 
-// Add user access to a board
+// Add user access to a board (RESTful: /board/:boardId/organization/:organizationId/access)
 router.post(
-  "/:boardId/access",
+  "/:boardId/organization/:organizationId/access",
   verifyToken,
-  requireBoardManageAccess, // Require board manage access permission
+  checkOrganizationMembership,
+  requireOrganizationAdmin,
   validate({
-    params: boardParamsSchema,
+    params: boardParamsSchema.merge(organizationParamsSchema),
     body: boardAccessSchema,
   }),
   boardController.addUserToBoard
@@ -80,32 +81,52 @@ router.post(
 
 // Remove user access from a board
 router.delete(
-  "/:boardId/access/:userId",
+  "/:boardId/organization/:organizationId/access/:userId",
   verifyToken,
-  requireBoardManageAccess, // Require board manage access permission
-  validate({ params: boardUserParamsSchema }),
+  checkOrganizationMembership,
+  requireOrganizationAdmin,
+  validate({ params: boardUserParamsSchema.merge(organizationParamsSchema) }),
   boardController.removeUserFromBoard
 );
 
 // Change user's access role on a board
 router.put(
-  "/:boardId/access/:userId",
+  "/:boardId/organization/:organizationId/access/:userId",
   verifyToken,
-  requireBoardManageAccess, // Require board manage access permission
+  checkOrganizationMembership,
+  requireOrganizationAdmin,
   validate({
-    params: boardUserParamsSchema,
+    params: boardUserParamsSchema.merge(organizationParamsSchema),
     body: changeBoardRoleSchema,
   }),
   boardController.changeUserBoardRole
 );
 
 // List all users with access to a board
+const boardOrgParamsSchema = boardParamsSchema.merge(organizationParamsSchema);
 router.get(
-  "/:boardId/access",
+  "/:boardId/organization/:organizationId/access",
   verifyToken,
-  requireBoardAccess, // Any board access is sufficient to see the access list
-  validate({ params: boardParamsSchema }),
-  boardController.getBoardAccessList
+  checkOrganizationMembership,
+  requireOrganizationAdmin,
+  validate({ params: boardOrgParamsSchema }),
+  async (req, res, next) => {
+    // Extra security: check board belongs to org
+    const { organizationId, boardId } = req.params;
+    const board = await (
+      await import("../config/prisma/prisma.client")
+    ).default.board.findUnique({ where: { id: boardId } });
+    if (!board || board.organizationId !== organizationId) {
+      res.status(403).json({
+        success: false,
+        message: "Board does not belong to this organization",
+      });
+      return;
+    }
+    await (
+      await import("../controllers/board.controller")
+    ).getBoardAccessList(req, res, next);
+  }
 );
 
 export default router;

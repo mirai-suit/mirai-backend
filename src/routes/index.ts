@@ -25,7 +25,7 @@ router.use("/board", boardRoutes);
 router.use("/column", columnRoutes); // Assuming you have a column.routes.ts file
 router.use("/organization", organizationRoutes);
 router.use("/invitation", invitationRoutes); // Public invitation endpoints
-router.use("/chats", messagingRoutes); // Chat/messaging endpoints
+router.use("/chat", messagingRoutes); // Chat/messaging endpoints
 router.use("/", noteRoutes); // Note routes
 router.use("/team", teamRoutes); // Team routes
 
