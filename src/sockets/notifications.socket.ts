@@ -49,6 +49,7 @@ export const handleNotificationEvents = (io: SocketIOServer, socket: Socket) => 
       notification: any;
     }) => {
       const { userId, boardId, teamId, notification } = data;
+      console.log(`Dispatching notification to user: ${data}`);
       if (userId) {
         io.to(`user_${userId}`).emit("notification:new", notification);
       }

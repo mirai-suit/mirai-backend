@@ -338,20 +338,20 @@ export const createTask = async (
             notification: `You have been assigned to task: ${task.title}`,
           });
 
-           io.emit("dispatchNotification", {...notification});
+           io.to(`user_${assignee.id}`).emit("notification:new", notification);
 
           
 
-          await sendEmail(
-            {
-              to: assignee.email,
-              subject: `New Task Assignment: ${task.title}`,
-            },
-            {
-              html: emailHtml,
-              text: emailText,
-            }
-          );
+          // await sendEmail(
+          //   {
+          //     to: assignee.email,
+          //     subject: `New Task Assignment: ${task.title}`,
+          //   },
+          //   {
+          //     html: emailHtml,
+          //     text: emailText,
+          //   }
+          // );
 
           logger.info(
             `Task assignment email sent to ${assignee.email} for task ${task.id}`
@@ -719,14 +719,7 @@ export const updateTask = async (taskId: string, data: UpdateTaskInput) => {
       console.log(`📝 [TASK UPDATE] No status change detected (${existingTask.status} -> ${data.status})`);
     }
 
-    updateData.assigneeIds?.forEach(async (assigneeId) => {
-    const notification = await createNotification({
-            userId: assigneeId,
-            notification: `You have been assigned to task: ${task.title} in board: ${task.board.title}`,
-    });
-
-    io.emit("dispatchNotification", {...notification});
-    })
+    
     return {
       success: true,
       message: "Task updated successfully",
@@ -839,6 +832,15 @@ export const assignUsersToTask = async (taskId: string, userIds: string[]) => {
         },
       },
     });
+
+    userIds?.forEach(async (assigneeId) => {
+    const notification = await createNotification({
+            userId: assigneeId,
+            notification: `You have been assigned to task: ${updatedTask.title} in board: ${updatedTask.board.title}`,
+    });
+
+    io.emit("dispatchNotification", {...notification});
+    })
 
     return {
       success: true,
