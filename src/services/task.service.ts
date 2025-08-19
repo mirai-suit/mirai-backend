@@ -55,6 +55,7 @@ export const reorderTasksInColumn = async (
 import prisma from "../config/prisma/prisma.client";
 import CustomError from "../shared/exceptions/CustomError";
 import logger from "../utils/logger";
+import { PerformanceService } from "./performance.service";
 import {
   TaskResponseDto,
   TaskDetailResponseDto,
@@ -349,6 +350,35 @@ export const createTask = async (
       }
     }
 
+    // Track performance metrics for task creation
+    if (task.assignees && task.assignees.length > 0) {
+      console.log(`🆕 [TASK CREATE] Tracking performance for new task ${task.id} with ${task.assignees.length} assignees`);
+      const performanceService = new PerformanceService(prisma);
+      
+      // Track task creation for all assignees
+      for (const assignee of task.assignees) {
+        try {
+          console.log(`📊 [TASK CREATE] Calling trackTaskActivity for assignee: ${assignee.id} (${assignee.firstName} ${assignee.lastName})`);
+          await performanceService.trackTaskActivity({
+            taskId: task.id,
+            userId: assignee.id,
+            action: "created",
+            fromStatus: undefined,
+            toStatus: task.status,
+            timeSpent: 0,
+            notes: `Task created and assigned`,
+          });
+          console.log(`✅ [TASK CREATE] Performance tracking completed for assignee ${assignee.id}`);
+        } catch (performanceError) {
+          console.error(`❌ [TASK CREATE] Performance tracking error: ${performanceError}`);
+          logger.error(`Performance tracking error: ${performanceError}`);
+          // Don't fail the task creation if performance tracking fails
+        }
+      }
+    } else {
+      console.log(`📝 [TASK CREATE] No assignees found for task ${task.id}, skipping performance tracking`);
+    }
+
     return {
       success: true,
       message: "Task created successfully",
@@ -614,6 +644,67 @@ export const updateTask = async (taskId: string, data: UpdateTaskInput) => {
         },
       },
     });
+
+    // Track performance metrics if status changed
+    if (data.status && data.status !== existingTask.status) {
+      console.log(`🔄 [TASK UPDATE] Status changed from ${existingTask.status} to ${data.status} for task ${taskId}`);
+      const performanceService = new PerformanceService(prisma);
+
+      // Track activity for all assignees
+      console.log(`👥 [TASK UPDATE] Tracking performance for ${task.assignees.length} assignees`);
+      for (const assignee of task.assignees) {
+        let action: string;
+
+        // Determine action based on status change
+        if (data.status === "COMPLETED") {
+          action = "completed";
+        } else if (
+          data.status === "IN_PROGRESS" &&
+          existingTask.status === "NOT_STARTED"
+        ) {
+          action = "started";
+        } else if (
+          data.status === "IN_PROGRESS" &&
+          existingTask.status === "COMPLETED"
+        ) {
+          action = "reopened"; // Task moved back from completed to in progress
+        } else if (
+          data.status === "NOT_STARTED" &&
+          existingTask.status === "IN_PROGRESS"
+        ) {
+          action = "updated"; // Use 'updated' for now, we'll handle it in performance service
+        } else {
+          action = "updated";
+        }
+
+        console.log(`🎯 [TASK UPDATE] Action determined: ${action} for user ${assignee.id} (${assignee.firstName} ${assignee.lastName})`);
+
+        // Only track specific actions that affect metrics
+        if (["completed", "started", "reopened"].includes(action)) {
+          try {
+            console.log(`📊 [TASK UPDATE] Calling trackTaskActivity for action: ${action}`);
+            await performanceService.trackTaskActivity({
+              taskId: task.id,
+              userId: assignee.id,
+              action: action as "completed" | "started" | "created" | "reopened",
+              fromStatus: existingTask.status,
+              toStatus: data.status,
+              timeSpent: 0, // Will be calculated by completion time tracking
+              notes: `Task status changed from ${existingTask.status} to ${data.status}`,
+            });
+            console.log(`✅ [TASK UPDATE] Performance tracking completed for user ${assignee.id}`);
+          } catch (performanceError) {
+            console.error(`❌ [TASK UPDATE] Performance tracking error: ${performanceError}`);
+            logger.error(`Performance tracking error: ${performanceError}`);
+            // Don't fail the task update if performance tracking fails
+          }
+        } else {
+          console.log(`⏭️ [TASK UPDATE] Skipping performance tracking for action: ${action}`);
+        }
+      }
+    } else {
+      console.log(`📝 [TASK UPDATE] No status change detected (${existingTask.status} -> ${data.status})`);
+    }
 
     return {
       success: true,
