@@ -150,33 +150,33 @@ export const getCurrentUser = async (req: Request, res: Response, next: NextFunc
 // };
 
 /**
- * Logout user and invalidate tokens
+ * Logout user and revoke all refresh tokens
  * @route POST /api/auth/logout
  */
-// export const logout = async (req: Request, res: Response, next: NextFunction) => {
-//     try {
-//         const { refreshToken } = req.body;
+export const logout = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const userId = req.user?.id;
         
-//         if (!refreshToken) {
-//             res.status(400).json({
-//                 success: false,
-//                 message: 'Refresh token is required'
-//             });
-//             return;
-//         }
+        if (!userId) {
+            res.status(401).json({
+                success: false,
+                message: 'Unauthorized'
+            });
+            return;
+        }
 
-//         // You need to implement this function in your auth service
-//         // await authService.invalidateRefreshToken(refreshToken);
+        // Revoke all refresh tokens for this user
+        await authService.logoutUser(userId);
 
-//         res.status(200).json({
-//             success: true,
-//             message: 'Logged out successfully'
-//         });
-//     } catch (error) {
-//         logger.error(`Logout error: ${error}`);
-//         next(error);
-//     }
-// };
+        res.status(200).json({
+            success: true,
+            message: 'Logged out successfully'
+        });
+    } catch (error) {
+        logger.error(`Logout error: ${error}`);
+        next(error);
+    }
+};
 
 
 /**

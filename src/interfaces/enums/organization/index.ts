@@ -1,7 +1,6 @@
 // Organization Role Enum - matching Prisma schema
 export enum OrganizationRole {
   ADMIN = "ADMIN",
-  EDITOR = "EDITOR",
   MEMBER = "MEMBER",
 }
 
@@ -40,17 +39,6 @@ export const ROLE_PERMISSIONS: Record<
     updateOrgSettings: true,
     deleteOrganization: true,
     accessAllBoards: true,
-  },
-  [OrganizationRole.EDITOR]: {
-    inviteUsers: true,
-    removeUsers: false,
-    changeUserRoles: false,
-    createBoards: true,
-    deleteBoards: false,
-    archiveBoards: true,
-    updateOrgSettings: false,
-    deleteOrganization: false,
-    accessAllBoards: false, // Need explicit board access
   },
   [OrganizationRole.MEMBER]: {
     inviteUsers: false,

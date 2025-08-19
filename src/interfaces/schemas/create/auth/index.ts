@@ -8,9 +8,9 @@ export const userSchema = z.object({
   roles: z
     .array(z.string())
     .refine(
-      (data) => data.every((role) => role in ["MEMBER", "ADMIN", "EDITOR"]),
+      (data) => data.every((role) => role in ["MEMBER", "ADMIN"]),
       {
-        message: "Role must be either from 'MEMBER' , 'ADMIN' or 'EDITOR'",
+        message: "Role must be either from 'MEMBER' or 'ADMIN'",
       }
     )
     .default(["MEMBER"]),

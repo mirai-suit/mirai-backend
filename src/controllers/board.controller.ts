@@ -175,9 +175,11 @@ export const getBoardAccessList = async (
 ) => {
   try {
     const { boardId } = req.params;
+    const currentUserId = req.user?.id; // Get authenticated user ID from JWT
+    
     const accessList = await (
       await import("../services/boardAccess.service")
-    ).getBoardAccessList(boardId);
+    ).getBoardAccessList(boardId, currentUserId);
     res.status(200).json({ success: true, accessList });
   } catch (error) {
     logger.error(`Get Board Access List Controller Error: ${error}`);

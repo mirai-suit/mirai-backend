@@ -115,8 +115,8 @@ export const requireOrganizationPermission = (
 export const requireOrganizationAdmin =
   requireOrganizationPermission("updateOrgSettings");
 
-// Middleware to require editor or admin role
-export const requireEditorOrAdmin = (
+// Middleware to require admin role (since EDITOR was removed)
+export const requireOrganizationAdminRole = (
   req: OrganizationRequest,
   res: Response,
   next: NextFunction
@@ -131,10 +131,10 @@ export const requireEditorOrAdmin = (
     return;
   }
 
-  if (userRole === OrganizationRole.MEMBER) {
+  if (userRole !== OrganizationRole.ADMIN) {
     res.status(403).json({
       success: false,
-      message: "Editor or Admin role required",
+      message: "Admin role required",
     });
     return;
   }

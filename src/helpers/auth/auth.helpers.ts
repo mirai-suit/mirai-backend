@@ -96,27 +96,24 @@ export async function generateAndSaveRefreshToken(
   const expiresAt = new Date();
   expiresAt.setDate(expiresAt.getDate() + 7); // 7 days from now
 
-  // Check if user has existing refresh tokens
-  const existingRefreshTokens = await prisma.refreshToken.findMany({
-    where: { userId: userId },
-  });
+  // Use transaction to atomically delete existing tokens and create new one
+  // This ensures only one active session per user (MVP requirement)
+  await prisma.$transaction(async (tx) => {
+    // Delete all existing refresh tokens for this user
+    await tx.refreshToken.deleteMany({
+      where: { userId: userId },
+    });
 
-  // If user has existing refresh tokens, revoke all of them
-  // This ensures only one active session per user (you can modify this logic
-  // if you want to allow multiple active sessions)
-  if (existingRefreshTokens.length > 0) {
-    await revokeAllRefreshTokens(userId);
-  }
-
-  // Create new refresh token
-  await prisma.refreshToken.create({
-    data: {
-      token,
-      user: {
-        connect: { id: userId },
+    // Create new refresh token
+    await tx.refreshToken.create({
+      data: {
+        token,
+        user: {
+          connect: { id: userId },
+        },
+        expiresAt,
       },
-      expiresAt,
-    },
+    });
   });
 
   return token;

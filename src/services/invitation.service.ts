@@ -77,20 +77,6 @@ export const sendOrganizationInvitation = async ({
       }
     }
 
-    // Check for existing pending invitation
-    const existingInvitation = await prisma.invitation.findUnique({
-      where: {
-        email_organizationId: {
-          email,
-          organizationId,
-        },
-      },
-    });
-
-    if (existingInvitation && existingInvitation.status === "PENDING") {
-      throw new CustomError(400, "Invitation already sent to this email");
-    }
-
     // Get organization and inviter details for email
     const organization = await prisma.organization.findUnique({
       where: { id: organizationId },

@@ -10,11 +10,14 @@ import {
   generateToken,
   // sendVerificationEmail,
   revokeRefreshToken,
+  revokeAllRefreshTokens,
   verifyRefreshToken,
   createJwtPayload,
   // sendPasswordResetEmail,
+  // createPasswordResetToken,
   // deactivateOtp,
   // deactivateUserOtps,
+  // validateOtp,
   // findLatestValidOtp,
 } from "src/helpers/auth/auth.helpers";
 import logger from "src/utils/logger";
@@ -378,6 +381,27 @@ export const renewTokens = async (refreshToken: string) => {
     accessToken: newAccessToken,
     refreshToken: newRefreshToken,
   };
+};
+
+/**
+ * Logout user by revoking all refresh tokens
+ * @param userId - User ID to logout
+ */
+export const logoutUser = async (userId: string) => {
+  try {
+    // Revoke all refresh tokens for this user
+    await revokeAllRefreshTokens(userId);
+    
+    logger.info(`User ${userId} logged out - all refresh tokens revoked`);
+    
+    return {
+      success: true,
+      message: "User logged out successfully"
+    };
+  } catch (error) {
+    logger.error(`Error logging out user ${userId}: ${error}`);
+    throw error;
+  }
 };
 
 /**
