@@ -1,4 +1,6 @@
 // Reorder tasks in a column
+import { io } from "../server"; // Adjust path if needed
+
 export const reorderTasksInColumn = async (
   columnId: string,
   taskIds: string[]
@@ -41,6 +43,7 @@ export const reorderTasksInColumn = async (
       },
       orderBy: [{ order: "asc" }, { createdAt: "asc" }],
     });
+
     return {
       success: true,
       message: "Tasks reordered successfully",
@@ -71,6 +74,7 @@ import {
   generateTaskAssignmentEmailPlainText,
 } from "../templates/email/task-assignment.template";
 import { sendEmail } from "./email.service";
+import { createNotification } from "./notification.service";
 
 // Helper function to transform Prisma task to minimal DTO
 const transformTaskToDto = (task: any): TaskResponseDto => {
@@ -328,6 +332,15 @@ export const createTask = async (
             priority: task.priority || undefined,
             taskUrl,
           });
+
+           const notification = await createNotification({
+            userId: assignee.id,
+            notification: `You have been assigned to task: ${task.title}`,
+          });
+
+           io.emit("dispatchNotification", {...notification});
+
+          
 
           await sendEmail(
             {
@@ -706,6 +719,14 @@ export const updateTask = async (taskId: string, data: UpdateTaskInput) => {
       console.log(`📝 [TASK UPDATE] No status change detected (${existingTask.status} -> ${data.status})`);
     }
 
+    updateData.assigneeIds?.forEach(async (assigneeId) => {
+    const notification = await createNotification({
+            userId: assigneeId,
+            notification: `You have been assigned to task: ${task.title} in board: ${task.board.title}`,
+    });
+
+    io.emit("dispatchNotification", {...notification});
+    })
     return {
       success: true,
       message: "Task updated successfully",

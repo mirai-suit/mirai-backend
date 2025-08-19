@@ -4,6 +4,7 @@ import {
   handleMessagingDisconnect,
 } from "./messaging.socket";
 import logger from "../utils/logger";
+import { handleNotificationDisconnect, handleNotificationEvents } from "./notifications.socket";
 
 /**
  * Main Socket.IO event handler
@@ -15,10 +16,12 @@ export const initializeSocketHandlers = (io: SocketIOServer) => {
 
     // Initialize messaging event handlers
     handleMessagingEvents(io, socket);
+    handleNotificationEvents(io, socket);
 
     // Handle disconnection
     socket.on("disconnect", () => {
       handleMessagingDisconnect(socket);
+      handleNotificationDisconnect(socket);
     });
 
     // You can add more event handler modules here as the app grows

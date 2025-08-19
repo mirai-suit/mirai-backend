@@ -95,6 +95,7 @@ model User {
   messages             Message[]
   notes                Note[]
   @@map("user_")
+  Notification Notification[]
 }
 
 model RefreshToken {
@@ -191,6 +192,7 @@ model Team {
   updatedAt      DateTime            @updatedAt
 
   @@map("teams")
+  Notification Notification[]
 }
 
 model Board {
@@ -221,6 +223,7 @@ model Board {
   messageThread  MessageThread?
   notes          Note[]
   @@map("boards")
+  Notification Notification[]
 }
 
 model Column {
@@ -511,6 +514,23 @@ model Note {
   @@index([category])
   @@map("notes")
 }
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String?  // Target user (nullable if board/team notification)
+  boardId   String?  // Target board (nullable)
+  teamId    String?  // Target team (nullable)
+  notification      String?  // JSON string for extra payload (taskId, etc.)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  read      Boolean  @default(false) // Read status
+
+  // Relations (optional, if you have User, Board, Team models)
+  user      User?    @relation(fields: [userId], references: [id])
+  board     Board?   @relation(fields: [boardId], references: [id])
+  team      Team?    @relation(fields: [teamId], references: [id])
+}
+
 
 // model user {
 //   id        String   @id @default(uuid())

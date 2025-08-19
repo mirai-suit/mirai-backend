@@ -10,6 +10,7 @@ import columnRoutes from "./column.routes"; // Assuming you have a column.routes
 import noteRoutes from "./note.routes";
 import teamRoutes from "./team.routes";
 import performanceRoutes from "./performance.routes"; // Import performance routes
+import notificationRoutes from "./notification.routes";
 
 const router = Router();
 
@@ -30,5 +31,6 @@ router.use("/chat", messagingRoutes); // Chat/messaging endpoints
 router.use("/", noteRoutes); // Note routes
 router.use("/team", teamRoutes); // Team routes
 router.use("/performance", performanceRoutes); // Performance routes
+router.use("/notifications", notificationRoutes);
 
 export default router;
