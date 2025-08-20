@@ -647,4 +647,90 @@ export class TeamService {
         : undefined,
     };
   }
+
+  /**
+   * Get teams for task assignment (simplified list for dropdowns)
+   */
+  async getTeamsForTaskAssignment(organizationId: string): Promise<Array<{
+    id: string;
+    name: string;
+    color: string;
+    memberCount: number;
+  }>> {
+    const teams = await this.prisma.team.findMany({
+      where: {
+        organizationId,
+        isActive: true,
+      },
+      select: {
+        id: true,
+        name: true,
+        color: true,
+        _count: {
+          select: {
+            members: {
+              where: {
+                leftAt: null, // Only count active members
+              },
+            },
+          },
+        },
+      },
+      orderBy: {
+        name: 'asc',
+      },
+    });
+
+    return teams.map(team => ({
+      id: team.id,
+      name: team.name,
+      color: team.color,
+      memberCount: team._count.members,
+    }));
+  }
+
+  /**
+   * Get teams that have access to a specific board (for task assignment)
+   */
+  async getTeamsByBoardAccess(boardId: string): Promise<Array<{
+    id: string;
+    name: string;
+    color: string;
+    memberCount: number;
+  }>> {
+    const teams = await this.prisma.team.findMany({
+      where: {
+        isActive: true,
+        boardAccess: {
+          some: {
+            boardId: boardId,
+          },
+        },
+      },
+      select: {
+        id: true,
+        name: true,
+        color: true,
+        _count: {
+          select: {
+            members: {
+              where: {
+                leftAt: null, // Only count active members
+              },
+            },
+          },
+        },
+      },
+      orderBy: {
+        name: 'asc',
+      },
+    });
+
+    return teams.map(team => ({
+      id: team.id,
+      name: team.name,
+      color: team.color,
+      memberCount: team._count.members,
+    }));
+  }
 }

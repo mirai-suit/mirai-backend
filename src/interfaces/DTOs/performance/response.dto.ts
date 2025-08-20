@@ -30,7 +30,8 @@ export interface TaskActivityLogRequest {
     | "completed"
     | "reopened"
     | "commented"
-    | "updated";
+    | "updated"
+    | "status_changed";
   fromStatus?: string;
   toStatus?: string;
   timeSpent?: number;

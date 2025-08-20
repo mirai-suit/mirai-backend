@@ -1,4 +1,4 @@
-import { PrismaClient, Task, Board, User, TaskStatus, TaskPriority } from '@prisma/client';
+import { PrismaClient, Task, Board, User, TaskStatus, TaskPriority, Team } from '@prisma/client';
 import { faker } from '@faker-js/faker';
 
 const prisma = new PrismaClient();
@@ -22,13 +22,21 @@ export async function seedTasks(boards: Board[], users: User[]): Promise<Task[]>
 
     if (columns.length === 0) continue;
 
-    // Get board members
-    const boardMembers = await prisma.boardAccess.findMany({
+    // Get teams that have access to this board
+    const teamsWithAccess = await prisma.teamBoardAccess.findMany({
       where: { boardId: board.id },
-      include: { user: true },
+      include: { 
+        team: {
+          include: {
+            members: {
+              include: { user: true }
+            }
+          }
+        }
+      },
     });
 
-    if (boardMembers.length === 0) continue;
+    if (teamsWithAccess.length === 0) continue;
 
     // Create 8-15 tasks per board
     const taskCount = faker.number.int({ min: 8, max: 15 });
@@ -59,7 +67,11 @@ export async function seedTasks(boards: Board[], users: User[]): Promise<Task[]>
 
       const taskTitle = faker.helpers.arrayElement(taskTemplates);
       const taskDescription = faker.lorem.paragraphs(2);
-      const assignee = faker.helpers.arrayElement(boardMembers);
+      
+      // Select a random team that has access to this board
+      const selectedTeamAccess = faker.helpers.arrayElement(teamsWithAccess);
+      const selectedTeam = selectedTeamAccess.team;
+      
       const column = faker.helpers.arrayElement(columns);
       
       // Set task status based on column
@@ -100,6 +112,7 @@ export async function seedTasks(boards: Board[], users: User[]): Promise<Task[]>
       }
 
       try {
+        // Create task with team assignment
         const task = await prisma.task.create({
           data: {
             title: taskTitle,
@@ -110,72 +123,60 @@ export async function seedTasks(boards: Board[], users: User[]): Promise<Task[]>
             startDate: startDate,
             boardId: board.id,
             columnId: column.id,
+            teamId: selectedTeam.id, // Assign to team instead of individual
             order: i,
             createdAt: createdAt,
             updatedAt: status === TaskStatus.COMPLETED ? faker.date.between({ from: startDate || createdAt, to: new Date() }) : createdAt,
+            // Connect all team members as assignees automatically
             assignees: {
-              connect: { id: assignee.userId }
+              connect: selectedTeam.members.map(member => ({ id: member.userId }))
             }
           },
         });
 
-        // Create task activity logs for realistic history
-        await prisma.taskActivityLog.create({
-          data: {
-            taskId: task.id,
-            userId: assignee.userId,
-            action: 'CREATED',
-            timestamp: createdAt,
-          },
-        });
+        // Create task activity logs for team assignment
+        const teamLeader = selectedTeam.members.find(m => m.role === 'LEADER');
+        const creatorUserId = teamLeader?.userId || selectedTeam.members[0]?.userId;
 
-        if (startDate) {
+        if (creatorUserId) {
           await prisma.taskActivityLog.create({
             data: {
               taskId: task.id,
-              userId: assignee.userId,
-              action: 'STARTED',
-              timestamp: startDate,
+              userId: creatorUserId,
+              action: 'CREATED',
+              timestamp: createdAt,
             },
           });
-        }
 
-        if (status === TaskStatus.COMPLETED) {
-          const completedAt = faker.date.between({
-            from: startDate || createdAt,
-            to: new Date(),
-          });
+          if (startDate) {
+            // Random team member starts the task
+            const randomMember = faker.helpers.arrayElement(selectedTeam.members);
+            await prisma.taskActivityLog.create({
+              data: {
+                taskId: task.id,
+                userId: randomMember.userId,
+                action: 'STARTED',
+                timestamp: startDate,
+              },
+            });
+          }
 
-          await prisma.taskActivityLog.create({
-            data: {
-              taskId: task.id,
-              userId: assignee.userId,
-              action: 'COMPLETED',
-              timestamp: completedAt,
-            },
-          });
-        }
+          if (status === TaskStatus.COMPLETED) {
+            const completedAt = faker.date.between({
+              from: startDate || createdAt,
+              to: new Date(),
+            });
 
-        // Add some random additional assignees (30% chance)
-        if (faker.datatype.boolean({ probability: 0.3 }) && boardMembers.length > 1) {
-          const additionalAssignees = faker.helpers.arrayElements(
-            boardMembers.filter(m => m.userId !== assignee.userId),
-            faker.number.int({ min: 1, max: 2 })
-          );
-
-          for (const additionalAssignee of additionalAssignees) {
-            try {
-              await prisma.task.update({
-                where: { id: task.id },
-                data: {
-                  assignees: {
-                    connect: { id: additionalAssignee.userId }
-                  }
-                }
-              });
-            } catch (error) {
-              // Assignee might already exist, skip
-            }
+            // Random team member completes the task
+            const randomMember = faker.helpers.arrayElement(selectedTeam.members);
+            await prisma.taskActivityLog.create({
+              data: {
+                taskId: task.id,
+                userId: randomMember.userId,
+                action: 'COMPLETED',
+                timestamp: completedAt,
+              },
+            });
           }
         }
 

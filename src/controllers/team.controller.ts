@@ -457,3 +457,49 @@ export const getUserPerformanceMetrics = async (
     next(error);
   }
 };
+
+/**
+ * Get teams for task assignment (simplified list for dropdowns)
+ */
+export const getTeamsForTaskAssignment = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { organizationId } = req.params;
+
+    const teams = await teamService.getTeamsForTaskAssignment(organizationId);
+
+    res.status(200).json({
+      success: true,
+      data: { teams },
+    });
+  } catch (error) {
+    console.error("Error fetching teams for task assignment:", error);
+    next(error);
+  }
+};
+
+/**
+ * Get teams by board access for task assignment
+ */
+export const getTeamsByBoardAccess = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { boardId } = req.params;
+
+    const teams = await teamService.getTeamsByBoardAccess(boardId);
+
+    res.status(200).json({
+      success: true,
+      data: { teams },
+    });
+  } catch (error) {
+    console.error("Error fetching teams by board access:", error);
+    next(error);
+  }
+};

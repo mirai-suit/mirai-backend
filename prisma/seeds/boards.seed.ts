@@ -28,7 +28,7 @@ export async function seedBoards(teams: Team[], users: User[]): Promise<Board[]>
       ];
 
       const template = faker.helpers.arrayElement(boardTemplates);
-      const boardColor = faker.internet.color();
+      const boardColor = faker.color.rgb();
 
       try {
         const board = await prisma.board.create({

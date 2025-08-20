@@ -42,7 +42,8 @@ export class PerformanceService {
         data.action === "completed" ||
         data.action === "started" ||
         data.action === "created" ||
-        data.action === "reopened"
+        data.action === "reopened" ||
+        data.action === "status_changed"
       ) {
         console.log(`📊 [PERFORMANCE] Action ${data.action} requires metrics update`);
         await this.updateUserPerformanceMetrics(
@@ -80,39 +81,8 @@ export class PerformanceService {
       });
 
       if (!task || !task.team) {
-        console.log(`⚠️ [METRICS] Task not found or no team associated:`, { 
-          taskFound: !!task, 
-          teamFound: !!task?.team,
-          taskId: task?.id,
-          teamId: task?.teamId 
-        });
-        
-        // If task exists but has no team, let's check if teamId is set
-        if (task && task.teamId) {
-          console.log(`🔧 [METRICS] Task has teamId ${task.teamId} but team relation not loaded, trying to load team...`);
-          
-          // Try to fetch the task with team relation
-          const taskWithTeam = await this.prisma.task.findUnique({
-            where: { id: task.id },
-            include: { team: true }
-          });
-          
-          if (taskWithTeam?.team) {
-            console.log(`✅ [METRICS] Team found after reload: ${taskWithTeam.team.name}`);
-            // Update the task reference to include the team
-            task.team = taskWithTeam.team;
-          } else {
-            console.log(`❌ [METRICS] Task has teamId but team does not exist in database`);
-            // Fall through to individual user tracking
-          }
-        }
-        
-        // If still no team, use individual user performance tracking
-        if (!task?.team) {
-          console.log(`🏃‍♂️ [METRICS] Using individual user performance tracking (no team required)`);
-          await this.trackIndividualUserPerformance(userId, taskId, action, task);
-          return;
-        }
+        console.log(`⚠️ [METRICS] Task not found or no team associated`);
+        return;
       }
 
       console.log(`📋 [METRICS] Task found: ${task.title} (Team: ${task.team.name})`);
@@ -127,9 +97,7 @@ export class PerformanceService {
       });
 
       if (!teamMember) {
-        console.log(`⚠️ [METRICS] Team member not found for user ${userId} in team ${task.teamId}`);
-        console.log(`🏃‍♂️ [METRICS] User not in team, falling back to individual performance tracking`);
-        await this.trackIndividualUserPerformance(userId, taskId, action, task);
+        console.log(`⚠️ [METRICS] User ${userId} is not a member of team ${task.teamId}`);
         return;
       }
 
@@ -151,6 +119,7 @@ export class PerformanceService {
 
       if (!metrics) {
         console.log(`📊 [METRICS] Creating new metrics record for current period`);
+        
         metrics = await this.prisma.userPerformanceMetrics.create({
           data: {
             userId,
@@ -158,169 +127,73 @@ export class PerformanceService {
             period: "MONTHLY",
             periodStart: currentPeriod.start,
             periodEnd: currentPeriod.end,
+            tasksAssigned: 0,
+            tasksCompleted: 0,
+            tasksInProgress: 0,
           },
         });
-        console.log(`✅ [METRICS] New metrics record created: ${metrics.id}`);
+        console.log(`✅ [METRICS] New metrics record created with zeros`);
       } else {
-        console.log(`📊 [METRICS] Existing metrics record found: ${metrics.id}`);
+        console.log(`📊 [METRICS] Existing metrics found:`, {
+          assigned: metrics.tasksAssigned,
+          completed: metrics.tasksCompleted,
+          inProgress: metrics.tasksInProgress
+        });
       }
 
-      // Update metrics based on action
+      // Simple incremental updates
       const updates: any = { lastActiveDate: new Date() };
 
       switch (action) {
         case "created":
           updates.tasksAssigned = { increment: 1 };
-          console.log(`📈 [METRICS] Incrementing tasksAssigned`);
+          console.log(`📈 [METRICS] Task created: tasksAssigned +1`);
           break;
+
         case "started":
           updates.tasksInProgress = { increment: 1 };
-          console.log(`📈 [METRICS] Incrementing tasksInProgress`);
+          console.log(`📈 [METRICS] Task started: tasksInProgress +1`);
           break;
-        case "completed":
-          const completionTime = await this.calculateTaskCompletionTime(
-            taskId,
-            userId
-          );
-          const isOnTime = task.dueDate ? new Date() <= task.dueDate : true;
 
+        case "completed":
           updates.tasksCompleted = { increment: 1 };
-          // Only decrement tasksInProgress if it's greater than 0
           if (metrics.tasksInProgress > 0) {
             updates.tasksInProgress = { decrement: 1 };
           }
-          updates.totalWorkingMinutes = { increment: completionTime };
-
-          if (isOnTime) {
-            updates.tasksCompletedOnTime = { increment: 1 };
-          } else {
-            updates.tasksCompletedLate = { increment: 1 };
-          }
-          
-          console.log(`📈 [METRICS] Task completion updates:`, {
-            tasksCompleted: '+1',
-            tasksInProgress: metrics.tasksInProgress > 0 ? '-1' : '0 (already at minimum)',
-            totalWorkingMinutes: `+${completionTime}`,
-            onTime: isOnTime
-          });
+          console.log(`📈 [METRICS] Task completed: tasksCompleted +1, tasksInProgress -1`);
           break;
+
         case "reopened":
-          // Task moved back from completed to in progress
           updates.tasksInProgress = { increment: 1 };
-          // Only decrement tasksCompleted if it's greater than 0
           if (metrics.tasksCompleted > 0) {
             updates.tasksCompleted = { decrement: 1 };
-            // Also decrement the completion type counters
-            if (metrics.tasksCompletedOnTime > 0) {
-              updates.tasksCompletedOnTime = { decrement: 1 };
-            } else if (metrics.tasksCompletedLate > 0) {
-              updates.tasksCompletedLate = { decrement: 1 };
-            }
           }
-          updates.tasksReopened = { increment: 1 };
-          
-          console.log(`📈 [METRICS] Task reopened updates:`, {
-            tasksCompleted: metrics.tasksCompleted > 0 ? '-1' : '0 (already at minimum)',
-            tasksInProgress: '+1',
-            tasksReopened: '+1'
-          });
+          console.log(`📈 [METRICS] Task reopened: tasksInProgress +1, tasksCompleted -1`);
           break;
+
+        default:
+          console.log(`⏭️ [METRICS] Action '${action}' does not require metric updates`);
+          return;
       }
 
-      // Update the metrics
-      console.log(`💾 [METRICS] Updating metrics with:`, updates);
+      // Apply the updates
+      console.log(`💾 [METRICS] Applying updates:`, updates);
       const updatedMetrics = await this.prisma.userPerformanceMetrics.update({
         where: { id: metrics.id },
         data: updates,
       });
 
-      console.log(`✅ [METRICS] Metrics updated successfully:`, {
-        tasksAssigned: updatedMetrics.tasksAssigned,
-        tasksCompleted: updatedMetrics.tasksCompleted,
-        tasksInProgress: updatedMetrics.tasksInProgress
+      console.log(`✅ [METRICS] Metrics updated:`, {
+        assigned: updatedMetrics.tasksAssigned,
+        completed: updatedMetrics.tasksCompleted,
+        inProgress: updatedMetrics.tasksInProgress
       });
 
-      // Recalculate derived metrics
-      console.log(`🔄 [METRICS] Recalculating derived metrics...`);
-      await this.recalculateMetrics(updatedMetrics.id);
-      console.log(`✅ [METRICS] Derived metrics recalculated`);
+      console.log(`✅ [METRICS] Performance tracking completed successfully`);
     } catch (error) {
       console.error(`❌ [METRICS] Error in updateUserPerformanceMetrics:`, error);
       throw error;
     }
-  }
-
-  /**
-   * Recalculate derived performance metrics
-   */
-  private async recalculateMetrics(metricsId: string): Promise<void> {
-    console.log(`🔄 [RECALCULATE] Starting recalculation for metrics ID: ${metricsId}`);
-
-    const metrics = await this.prisma.userPerformanceMetrics.findUnique({
-      where: { id: metricsId },
-    });
-
-    if (!metrics) {
-      console.log(`⚠️ [RECALCULATE] Metrics not found for ID: ${metricsId}`);
-      return;
-    }
-
-    console.log(`📊 [RECALCULATE] Current metrics:`, {
-      tasksAssigned: metrics.tasksAssigned,
-      tasksCompleted: metrics.tasksCompleted,
-      tasksInProgress: metrics.tasksInProgress,
-      tasksCompletedOnTime: metrics.tasksCompletedOnTime,
-      totalWorkingMinutes: metrics.totalWorkingMinutes
-    });
-
-    const completionRate =
-      metrics.tasksAssigned > 0
-        ? (metrics.tasksCompleted / metrics.tasksAssigned) * 100
-        : 0;
-
-    const onTimeDeliveryRate =
-      metrics.tasksCompleted > 0
-        ? (metrics.tasksCompletedOnTime / metrics.tasksCompleted) * 100
-        : 0;
-
-    const averageTaskCompletionHours =
-      metrics.tasksCompleted > 0
-        ? metrics.totalWorkingMinutes / metrics.tasksCompleted / 60
-        : 0;
-
-    // Calculate productivity score (0-100)
-    const productivityScore = this.calculateProductivityScore({
-      completionRate,
-      onTimeDeliveryRate,
-      averageCompletionHours: averageTaskCompletionHours,
-      reopenRate:
-        metrics.tasksCompleted > 0
-          ? (metrics.tasksReopened / metrics.tasksCompleted) * 100
-          : 0,
-    });
-
-    console.log(`📈 [RECALCULATE] Calculated derived metrics:`, {
-      completionRate: completionRate.toFixed(2) + '%',
-      onTimeDeliveryRate: onTimeDeliveryRate.toFixed(2) + '%',
-      averageTaskCompletionHours: averageTaskCompletionHours.toFixed(2),
-      productivityScore: productivityScore
-    });
-
-    const updatedMetrics = await this.prisma.userPerformanceMetrics.update({
-      where: { id: metricsId },
-      data: {
-        completionRate,
-        onTimeDeliveryRate,
-        averageTaskCompletionHours,
-        productivityScore,
-      },
-    });
-
-    console.log(`✅ [RECALCULATE] Metrics updated successfully:`, {
-      id: updatedMetrics.id,
-      completionRate: updatedMetrics.completionRate,
-      productivityScore: updatedMetrics.productivityScore
-    });
   }
 
   /**
@@ -565,194 +438,6 @@ export class PerformanceService {
     };
   }
 
-  /**
-   * Track individual user performance without team association
-   * Creates or uses a special "Individual Performance" team for users working on tasks without teams
-   */
-  private async trackIndividualUserPerformance(
-    userId: string,
-    taskId: string,
-    action: string,
-    task: any
-  ): Promise<void> {
-    console.log(`👤 [INDIVIDUAL METRICS] Tracking individual performance for user ${userId}`);
-
-    try {
-      // Find or create a special "Individual Performance" team for this user's organization
-      // We'll extract the organization from the task's board
-      const taskWithBoard = await this.prisma.task.findUnique({
-        where: { id: taskId },
-        include: { 
-          board: { 
-            select: { organizationId: true } 
-          } 
-        }
-      });
-
-      if (!taskWithBoard?.board?.organizationId) {
-        console.log(`❌ [INDIVIDUAL METRICS] Cannot determine organization for task ${taskId}`);
-        return;
-      }
-
-      const organizationId = taskWithBoard.board.organizationId;
-      
-      // Find or create "Individual Performance" team for this organization
-      let individualTeam = await this.prisma.team.findFirst({
-        where: {
-          name: "Individual Performance",
-          organizationId: organizationId,
-        },
-      });
-
-      if (!individualTeam) {
-        console.log(`🏗️ [INDIVIDUAL METRICS] Creating "Individual Performance" team for organization ${organizationId}`);
-        individualTeam = await this.prisma.team.create({
-          data: {
-            name: "Individual Performance",
-            description: "Virtual team for tracking individual user performance on tasks without team association",
-            organizationId: organizationId,
-          },
-        });
-        console.log(`✅ [INDIVIDUAL METRICS] Created "Individual Performance" team: ${individualTeam.id}`);
-      }
-
-      // Find or create team membership for this user
-      let teamMember = await this.prisma.teamMember.findFirst({
-        where: {
-          userId,
-          teamId: individualTeam.id,
-          leftAt: null,
-        },
-      });
-
-      if (!teamMember) {
-        console.log(`🔗 [INDIVIDUAL METRICS] Adding user ${userId} to "Individual Performance" team`);
-        teamMember = await this.prisma.teamMember.create({
-          data: {
-            userId,
-            teamId: individualTeam.id,
-            role: "MEMBER",
-            joinedAt: new Date(),
-          },
-        });
-        console.log(`✅ [INDIVIDUAL METRICS] User added to "Individual Performance" team: ${teamMember.id}`);
-      }
-      
-      const currentPeriod = this.getCurrentMonthPeriod();
-      console.log(`📅 [INDIVIDUAL METRICS] Current period:`, currentPeriod);
-
-      // Get or create performance metrics for current period
-      let metrics = await this.prisma.userPerformanceMetrics.findFirst({
-        where: {
-          userId,
-          teamMemberId: teamMember.id,
-          period: "MONTHLY",
-          periodStart: currentPeriod.start,
-          periodEnd: currentPeriod.end,
-        },
-      });
-
-      if (!metrics) {
-        console.log(`📊 [INDIVIDUAL METRICS] Creating new individual metrics record`);
-        metrics = await this.prisma.userPerformanceMetrics.create({
-          data: {
-            userId,
-            teamMemberId: teamMember.id,
-            period: "MONTHLY",
-            periodStart: currentPeriod.start,
-            periodEnd: currentPeriod.end,
-          },
-        });
-        console.log(`✅ [INDIVIDUAL METRICS] New individual metrics record created: ${metrics.id}`);
-      } else {
-        console.log(`📊 [INDIVIDUAL METRICS] Existing individual metrics record found: ${metrics.id}`);
-      }
-
-      // Update metrics based on action
-      const updates: any = { lastActiveDate: new Date() };
-
-      switch (action) {
-        case "created":
-          updates.tasksAssigned = { increment: 1 };
-          console.log(`📈 [INDIVIDUAL METRICS] Incrementing tasksAssigned`);
-          break;
-        case "started":
-          updates.tasksInProgress = { increment: 1 };
-          console.log(`📈 [INDIVIDUAL METRICS] Incrementing tasksInProgress`);
-          break;
-        case "completed":
-          const completionTime = await this.calculateTaskCompletionTime(
-            taskId,
-            userId
-          );
-          const isOnTime = task?.dueDate ? new Date() <= task.dueDate : true;
-
-          updates.tasksCompleted = { increment: 1 };
-          // Only decrement tasksInProgress if it's greater than 0
-          if (metrics.tasksInProgress > 0) {
-            updates.tasksInProgress = { decrement: 1 };
-          }
-          updates.totalWorkingMinutes = { increment: completionTime };
-
-          if (isOnTime) {
-            updates.tasksCompletedOnTime = { increment: 1 };
-          } else {
-            updates.tasksCompletedLate = { increment: 1 };
-          }
-          
-          console.log(`📈 [INDIVIDUAL METRICS] Task completion updates:`, {
-            tasksCompleted: '+1',
-            tasksInProgress: metrics.tasksInProgress > 0 ? '-1' : '0 (already at minimum)',
-            totalWorkingMinutes: `+${completionTime}`,
-            onTime: isOnTime
-          });
-          break;
-        case "reopened":
-          // Task moved back from completed to in progress
-          updates.tasksInProgress = { increment: 1 };
-          // Only decrement tasksCompleted if it's greater than 0
-          if (metrics.tasksCompleted > 0) {
-            updates.tasksCompleted = { decrement: 1 };
-            // Also decrement the completion type counters
-            if (metrics.tasksCompletedOnTime > 0) {
-              updates.tasksCompletedOnTime = { decrement: 1 };
-            } else if (metrics.tasksCompletedLate > 0) {
-              updates.tasksCompletedLate = { decrement: 1 };
-            }
-          }
-          updates.tasksReopened = { increment: 1 };
-          
-          console.log(`📈 [INDIVIDUAL METRICS] Task reopened updates:`, {
-            tasksCompleted: metrics.tasksCompleted > 0 ? '-1' : '0 (already at minimum)',
-            tasksInProgress: '+1',
-            tasksReopened: '+1'
-          });
-          break;
-      }
-
-      // Update the metrics
-      console.log(`💾 [INDIVIDUAL METRICS] Updating individual metrics with:`, updates);
-      const updatedMetrics = await this.prisma.userPerformanceMetrics.update({
-        where: { id: metrics.id },
-        data: updates,
-      });
-
-      console.log(`✅ [INDIVIDUAL METRICS] Individual metrics updated successfully:`, {
-        tasksAssigned: updatedMetrics.tasksAssigned,
-        tasksCompleted: updatedMetrics.tasksCompleted,
-        tasksInProgress: updatedMetrics.tasksInProgress
-      });
-
-      // Recalculate derived metrics
-      console.log(`🔄 [INDIVIDUAL METRICS] Recalculating individual derived metrics...`);
-      await this.recalculateMetrics(updatedMetrics.id);
-      console.log(`✅ [INDIVIDUAL METRICS] Individual derived metrics recalculated`);
-    } catch (error) {
-      console.error(`❌ [INDIVIDUAL METRICS] Error in trackIndividualUserPerformance:`, error);
-      throw error;
-    }
-  }
-
   // Helper methods
   private getCurrentMonthPeriod() {
     const now = new Date();
@@ -787,28 +472,11 @@ export class PerformanceService {
   }
 
   private async calculateTaskCompletionTime(
-    taskId: string,
-    userId: string
+    _taskId: string,
+    _userId: string
   ): Promise<number> {
-    const logs = await this.prisma.taskActivityLog.findMany({
-      where: {
-        taskId,
-        userId,
-        action: { in: ["started", "completed"] },
-      },
-      orderBy: { timestamp: "asc" },
-    });
-
-    if (logs.length < 2) return 0;
-
-    const startLog = logs.find((log) => log.action === "started");
-    const endLog = logs.find((log) => log.action === "completed");
-
-    if (!startLog || !endLog) return 0;
-
-    return Math.floor(
-      (endLog.timestamp.getTime() - startLog.timestamp.getTime()) / 60000
-    ); // minutes
+    // Simplified - just return 0 for now
+    return 0;
   }
 
   private isWithinLastWeek(date: Date): boolean {
@@ -958,4 +626,5 @@ export class PerformanceService {
 
     return recommendations;
   }
+
 }

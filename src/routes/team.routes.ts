@@ -15,6 +15,11 @@ router.get(
   checkOrganizationMembership,
   teamController.getTeamsByOrganization
 );
+router.get(
+  "/organization/:organizationId/task-assignment",
+  checkOrganizationMembership,
+  teamController.getTeamsForTaskAssignment
+);
 router.get("/:teamId", teamController.getTeamById);
 router.put("/:teamId", teamController.updateTeam);
 router.delete("/:teamId", teamController.deleteTeam);
@@ -30,6 +35,7 @@ router.put(
 // Team Board Access Management
 router.post("/:teamId/boards", teamController.assignBoardsToTeam);
 router.delete("/:teamId/boards/:boardId", teamController.removeBoardFromTeam);
+router.get("/board/:boardId/teams", teamController.getTeamsByBoardAccess);
 
 // Performance & Analytics Routes
 router.get("/:teamId/performance", teamController.getTeamPerformance);

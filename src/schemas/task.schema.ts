@@ -33,18 +33,15 @@ export const baseTaskSchema = z.object({
   isRecurring: z.boolean().default(false),
 });
 
-// Create task schema
+// Create task schema - now supports team-based assignment
 export const createTaskSchema = baseTaskSchema.extend({
   boardId: z.string().uuid("Invalid board ID"),
   columnId: z.string().uuid("Invalid column ID"),
-  teamId: z.string().uuid("Invalid team ID").optional(),
-  assigneeIds: z
-    .array(z.string().uuid("Invalid user ID"))
-    .optional()
-    .default([]),
+  teamId: z.string().uuid("Invalid team ID"),
+  // Remove individual assigneeIds - tasks are now assigned to teams only
 });
 
-// Update task schema - all fields optional except ID
+// Update task schema - team-based assignment
 export const updateTaskSchema = z.object({
   title: z
     .string()
@@ -61,7 +58,7 @@ export const updateTaskSchema = z.object({
   isRecurring: z.boolean().optional(),
   columnId: z.string().uuid("Invalid column ID").optional(),
   teamId: z.string().uuid("Invalid team ID").optional(),
-  assigneeIds: z.array(z.string().uuid("Invalid user ID")).optional(),
+  // Remove individual assigneeIds - use team assignment only
 });
 
 // Move task schema (for drag and drop)

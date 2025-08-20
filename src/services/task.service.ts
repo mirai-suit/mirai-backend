@@ -211,16 +211,41 @@ export const createTask = async (
       throw new CustomError(400, "Invalid column or board ID");
     }
 
-    // If assignees provided, verify they exist
-    if (data.assigneeIds && data.assigneeIds.length > 0) {
-      const users = await prisma.user.findMany({
-        where: { id: { in: data.assigneeIds } },
-      });
+    // Verify team exists and get all team members for assignment
+    const team = await prisma.team.findFirst({
+      where: {
+        id: data.teamId,
+      },
+      include: {
+        members: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                email: true,
+                avatar: true,
+              },
+            },
+          },
+        },
+      },
+    });
 
-      if (users.length !== data.assigneeIds.length) {
-        throw new CustomError(400, "One or more assignee IDs are invalid");
-      }
+    if (!team) {
+      throw new CustomError(400, "Invalid team ID");
     }
+
+    if (team.members.length === 0) {
+      throw new CustomError(400, "Team has no members to assign the task to");
+    }
+
+    // Get all active team member user IDs
+    const teamMemberIds = team.members.map(member => member.user.id);
+
+    console.log(`🏢 [TEAM ASSIGNMENT] Creating task for team "${team.name}" with ${team.members.length} members:`, 
+      team.members.map(m => `${m.user.firstName} ${m.user.lastName}`).join(', '));
 
     // Parse dueDate if provided
     const taskData = {
@@ -228,7 +253,7 @@ export const createTask = async (
       dueDate: data.dueDate ? new Date(data.dueDate) : undefined,
     };
 
-    // Create task with assignees
+    // Create task with all team members as assignees
     const task = await prisma.task.create({
       data: {
         title: taskData.title,
@@ -241,11 +266,9 @@ export const createTask = async (
         boardId: taskData.boardId,
         columnId: taskData.columnId,
         teamId: taskData.teamId,
-        assignees: taskData.assigneeIds
-          ? {
-              connect: taskData.assigneeIds.map((id) => ({ id })),
-            }
-          : undefined,
+        assignees: {
+          connect: teamMemberIds.map((id) => ({ id })),
+        },
       },
       include: {
         assignees: {
@@ -567,6 +590,9 @@ export const updateTask = async (taskId: string, data: UpdateTaskInput) => {
         id: taskId,
         deletedAt: null,
       },
+      include: {
+        assignees: true,
+      },
     });
 
     if (!existingTask) {
@@ -587,15 +613,38 @@ export const updateTask = async (taskId: string, data: UpdateTaskInput) => {
       }
     }
 
-    // If assignees provided, verify they exist
-    if (data.assigneeIds && data.assigneeIds.length > 0) {
-      const users = await prisma.user.findMany({
-        where: { id: { in: data.assigneeIds } },
+    // Handle team assignment if teamId is being updated
+    let newAssigneeIds: string[] | undefined;
+    if (data.teamId && data.teamId !== existingTask.teamId) {
+      const team = await prisma.team.findFirst({
+        where: {
+          id: data.teamId,
+        },
+        include: {
+          members: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  firstName: true,
+                  lastName: true,
+                },
+              },
+            },
+          },
+        },
       });
 
-      if (users.length !== data.assigneeIds.length) {
-        throw new CustomError(400, "One or more assignee IDs are invalid");
+      if (!team) {
+        throw new CustomError(400, "Invalid team ID");
       }
+
+      if (team.members.length === 0) {
+        throw new CustomError(400, "Team has no members to assign the task to");
+      }
+
+      newAssigneeIds = team.members.map(member => member.user.id);
+      console.log(`🔄 [TEAM UPDATE] Reassigning task "${existingTask.title}" to team "${team.name}" with ${team.members.length} members`);
     }
 
     // Parse dueDate if provided
@@ -617,11 +666,12 @@ export const updateTask = async (taskId: string, data: UpdateTaskInput) => {
         isRecurring: updateData.isRecurring,
         columnId: updateData.columnId,
         teamId: updateData.teamId,
-        assignees: updateData.assigneeIds
-          ? {
-              set: updateData.assigneeIds.map((id) => ({ id })),
-            }
-          : undefined,
+        // Update assignees if team changed
+        ...(newAssigneeIds && {
+          assignees: {
+            set: newAssigneeIds.map((id) => ({ id })),
+          },
+        }),
       },
       include: {
         assignees: {
@@ -666,53 +716,27 @@ export const updateTask = async (taskId: string, data: UpdateTaskInput) => {
       // Track activity for all assignees
       console.log(`👥 [TASK UPDATE] Tracking performance for ${task.assignees.length} assignees`);
       for (const assignee of task.assignees) {
-        let action: string;
-
-        // Determine action based on status change
-        if (data.status === "COMPLETED") {
-          action = "completed";
-        } else if (
-          data.status === "IN_PROGRESS" &&
-          existingTask.status === "NOT_STARTED"
-        ) {
-          action = "started";
-        } else if (
-          data.status === "IN_PROGRESS" &&
-          existingTask.status === "COMPLETED"
-        ) {
-          action = "reopened"; // Task moved back from completed to in progress
-        } else if (
-          data.status === "NOT_STARTED" &&
-          existingTask.status === "IN_PROGRESS"
-        ) {
-          action = "updated"; // Use 'updated' for now, we'll handle it in performance service
-        } else {
-          action = "updated";
-        }
+        const action = determineStatusAction(existingTask.status, data.status!);
 
         console.log(`🎯 [TASK UPDATE] Action determined: ${action} for user ${assignee.id} (${assignee.firstName} ${assignee.lastName})`);
+        console.log(`📋 [TASK UPDATE] Status transition: ${existingTask.status} → ${data.status}`);
 
-        // Only track specific actions that affect metrics
-        if (["completed", "started", "reopened"].includes(action)) {
-          try {
-            console.log(`📊 [TASK UPDATE] Calling trackTaskActivity for action: ${action}`);
-            await performanceService.trackTaskActivity({
-              taskId: task.id,
-              userId: assignee.id,
-              action: action as "completed" | "started" | "created" | "reopened",
-              fromStatus: existingTask.status,
-              toStatus: data.status,
-              timeSpent: 0, // Will be calculated by completion time tracking
-              notes: `Task status changed from ${existingTask.status} to ${data.status}`,
-            });
-            console.log(`✅ [TASK UPDATE] Performance tracking completed for user ${assignee.id}`);
-          } catch (performanceError) {
-            console.error(`❌ [TASK UPDATE] Performance tracking error: ${performanceError}`);
-            logger.error(`Performance tracking error: ${performanceError}`);
-            // Don't fail the task update if performance tracking fails
-          }
-        } else {
-          console.log(`⏭️ [TASK UPDATE] Skipping performance tracking for action: ${action}`);
+        try {
+          console.log(`📊 [TASK UPDATE] Calling trackTaskActivity for action: ${action}`);
+          await performanceService.trackTaskActivity({
+            taskId: task.id,
+            userId: assignee.id,
+            action: action as "completed" | "started" | "created" | "reopened" | "status_changed",
+            fromStatus: existingTask.status,
+            toStatus: data.status,
+            timeSpent: 0, // Will be calculated by completion time tracking
+            notes: `Task status changed from ${existingTask.status} to ${data.status}`,
+          });
+          console.log(`✅ [TASK UPDATE] Performance tracking completed for user ${assignee.id}`);
+        } catch (performanceError) {
+          console.error(`❌ [TASK UPDATE] Performance tracking error: ${performanceError}`);
+          logger.error(`Performance tracking error: ${performanceError}`);
+          // Don't fail the task update if performance tracking fails
         }
       }
     } else {
@@ -936,4 +960,52 @@ export const moveTask = async (data: MoveTaskInput & { taskId: string }) => {
     if (error instanceof CustomError) throw error;
     throw new CustomError(500, "Failed to move task");
   }
+};
+
+/**
+ * Determine the appropriate action for performance tracking based on status transition
+ */
+const determineStatusAction = (fromStatus: string, toStatus: string): string => {
+  // Task completion - always track as completed
+  if (toStatus === "COMPLETED") {
+    return "completed";
+  }
+
+  // Task reopening - moving from completed back to any active status
+  if (fromStatus === "COMPLETED" && toStatus !== "COMPLETED") {
+    return "reopened";
+  }
+
+  // Task starting - moving to IN_PROGRESS from inactive statuses
+  if (toStatus === "IN_PROGRESS") {
+    if (["NOT_STARTED", "BLOCKED", "CANCELLED"].includes(fromStatus)) {
+      return "started";
+    }
+    // Moving back to IN_PROGRESS from UNDER_REVIEW
+    if (fromStatus === "UNDER_REVIEW") {
+      return "status_changed";
+    }
+  }
+
+  // Moving from IN_PROGRESS to UNDER_REVIEW, BLOCKED, etc.
+  if (fromStatus === "IN_PROGRESS" && toStatus !== "IN_PROGRESS" && toStatus !== "COMPLETED") {
+    return "status_changed";
+  }
+
+  // Moving from NOT_STARTED to UNDER_REVIEW (skipping IN_PROGRESS)
+  if (fromStatus === "NOT_STARTED" && toStatus === "UNDER_REVIEW") {
+    return "status_changed";
+  }
+
+  // Moving from UNDER_REVIEW to COMPLETED
+  if (fromStatus === "UNDER_REVIEW" && toStatus === "COMPLETED") {
+    return "completed"; // This is handled above, but being explicit
+  }
+
+  // Any other meaningful status change
+  if (fromStatus !== toStatus) {
+    return "status_changed";
+  }
+
+  return "updated";
 };

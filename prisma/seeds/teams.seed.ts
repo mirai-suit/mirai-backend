@@ -34,7 +34,7 @@ export async function seedTeams(organizations: Organization[], users: User[]): P
 
       const teamName = faker.helpers.arrayElement(teamNames);
       const leader = faker.helpers.arrayElement(orgMembers);
-      const teamColor = faker.internet.color();
+      const teamColor = faker.color.rgb();
 
       try {
         const team = await prisma.team.create({
